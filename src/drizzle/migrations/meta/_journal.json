@@ -8,6 +8,27 @@
       "when": 1743982117937,
       "tag": "0000_sudden_firedrake",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1744152542676,
+      "tag": "0001_tearful_red_wolf",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1744153723887,
+      "tag": "0002_dapper_triathlon",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1744153811967,
+      "tag": "0003_nebulous_leader",
+      "breakpoints": true
     }
   ]
 }

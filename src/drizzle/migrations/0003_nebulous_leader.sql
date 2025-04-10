@@ -1,0 +1,1 @@
+ALTER TABLE "stac_images" ADD COLUMN "local_path" text;
