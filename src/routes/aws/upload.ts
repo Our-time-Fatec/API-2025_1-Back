@@ -9,7 +9,7 @@ import { uploadToS3 } from '../../aws/uploadToS3'
 
 export const uploadRoute: FastifyPluginAsyncZod = async app => {
   app.post(
-    '/upload',
+    '/image',
     {
       schema: {
         summary: 'Upload de arquivo para S3',
