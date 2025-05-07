@@ -6,6 +6,6 @@ const portSettings = {
   WEB_URL: env.WEB_URL,
 }
 
-const version = '0.0.1'
+const version = '0.0.5'
 
 export { portSettings, version }
