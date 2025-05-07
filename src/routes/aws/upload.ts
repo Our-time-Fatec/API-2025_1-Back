@@ -5,7 +5,7 @@ import { db } from '#/drizzle/client'
 import { uploads } from '#/drizzle/schemas/uploads'
 import { StatusCodes } from '#/enums/status-code'
 import { catchError } from '#/utils/catchError'
-import { uploadToS3 } from '../aws/uploadToS3'
+import { uploadToS3 } from '../../aws/uploadToS3'
 
 export const uploadRoute: FastifyPluginAsyncZod = async app => {
   app.post(

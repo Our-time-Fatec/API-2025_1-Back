@@ -1,8 +1,7 @@
 import { registerPrefix } from '#/utils/registerPrefix'
-import { uploadRoute } from '../upload'
 import { helloWorldRoute } from './hello-world'
 
-const routes = [helloWorldRoute, uploadRoute]
+const routes = [helloWorldRoute]
 
 const exampleRoute = '/example'
 
