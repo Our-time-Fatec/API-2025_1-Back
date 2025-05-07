@@ -1,7 +1,8 @@
+import type { IRoutes } from '#/@types/routes/IRoutes'
 import { registerPrefix } from '#/utils/registerPrefix'
 import { uploadRoute } from './upload'
 
-const routes = [uploadRoute]
+const routes: IRoutes = [{ route: uploadRoute, private: true }]
 
 const uploadPrefix = '/upload'
 
