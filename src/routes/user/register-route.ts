@@ -3,28 +3,19 @@ import z from 'zod'
 import { UserController } from '#/controllers/UserController'
 import { StatusCodes } from '#/enums/status-code'
 import { catchError } from '#/utils/catchError'
+import { registerSchema, userSchema } from './schema/zod'
 
-export const loginUserRoute: FastifyPluginAsyncZod = async app => {
+export const registerUserRoute: FastifyPluginAsyncZod = async app => {
   app.post(
-    '/login',
+    '/register',
     {
       schema: {
-        summary: 'Login an user',
+        summary: 'Register an user',
         tags: ['User'],
-        operationId: 'login',
-        body: z.object({
-          email: z.string().email(),
-          password: z.string(),
-        }),
-
+        operationId: 'registerUser',
+        body: registerSchema,
         response: {
-          [StatusCodes.OK]: z.object({
-            id: z.number(),
-            name: z.string(),
-            email: z.string(),
-            token: z.string(),
-            refreshToken: z.string(),
-          }),
+          [StatusCodes.OK]: userSchema,
           [StatusCodes.INTERNAL_SERVER_ERROR]: z.object({
             message: z.string(),
           }),
@@ -32,11 +23,11 @@ export const loginUserRoute: FastifyPluginAsyncZod = async app => {
       },
     },
     async (request, reply) => {
-      const { email, password } = request.body
+      const { email, password, name } = request.body
       const userController = new UserController()
 
       const [error, data] = await catchError(
-        userController.login({ email, password })
+        userController.register({ email, password, name })
       )
 
       if (error) {

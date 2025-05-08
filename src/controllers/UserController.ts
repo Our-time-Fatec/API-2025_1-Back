@@ -10,6 +10,19 @@ interface LoginProps {
   password: string
 }
 
+interface RegisterProps {
+  name: string
+  email: string
+  password: string
+}
+
+interface UpdateUser {
+  id?: number
+  name?: string
+  email?: string
+  password?: string
+}
+
 export class UserController {
   public async login({ email, password }: LoginProps) {
     const cryptoInstance = new CryptoController()
@@ -62,6 +75,75 @@ export class UserController {
       email: user.email,
       token,
       refreshToken,
+    }
+  }
+
+  public async register({ name, email, password }: RegisterProps) {
+    const cryptoInstance = new CryptoController()
+    const authInstance = new AuthController()
+
+    const hashedPassword = await cryptoInstance.hashPassword(password)
+
+    const result = await db
+      .insert(users)
+      .values({
+        name,
+        email,
+        password: hashedPassword,
+      })
+      .returning()
+
+    const token = authInstance.generateToken(result[0].id, result[0].email)
+    const refreshToken = authInstance.generateRefreshToken(
+      result[0].id,
+      result[0].email
+    )
+
+    return {
+      id: result[0].id,
+      name: result[0].name,
+      email: result[0].email,
+      token,
+      refreshToken,
+    }
+  }
+
+  public async updateUser({ id, name, email, password }: UpdateUser) {
+    const cryptoInstance = new CryptoController()
+
+    if (!id) {
+      throw new CustomError(
+        'ID do usuário não informado',
+        400,
+        'BAD_REQUEST_ID_USER'
+      )
+    }
+
+    const user = await db.select().from(users).where(SQL.eq(users.id, id))
+
+    if (user.length === 0) {
+      throw new CustomError('Usuário não encontrado', 404, 'NOT_FOUND_USER')
+    }
+
+    const hashedPassword = password
+      ? await cryptoInstance.hashPassword(password)
+      : user[0].password
+
+    const result = await db
+      .update(users)
+      .set({
+        name: name || user[0].name,
+        email: email || user[0].email,
+        password: hashedPassword,
+      })
+      .where(SQL.eq(users.id, id))
+      .returning()
+
+    return {
+      id: result[0].id,
+      name: result[0].name,
+      email: result[0].email,
+      createdAt: result[0].createdAt,
     }
   }
 }
