@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
-import { Auth } from '#/controllers/AuthController'
+import { AuthController } from '#/controllers/AuthController'
 
 const authMiddleware = async (request: FastifyRequest, reply: FastifyReply) => {
   const authHeader = request.headers.authorization
@@ -15,7 +15,7 @@ const authMiddleware = async (request: FastifyRequest, reply: FastifyReply) => {
   }
 
   try {
-    const authInstance = new Auth()
+    const authInstance = new AuthController()
     const decoded = authInstance.verifyToken(token)
 
     if (request.method === 'GET') {
