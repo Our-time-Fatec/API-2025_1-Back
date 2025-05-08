@@ -9,51 +9,12 @@ export const queimadaRoute: FastifyPluginAsyncZod = async app => {
         '/queimadas',
         {
             schema: {
-                summary: 'Lista de queimadas registradas',
+                summary: 'Lista de queimadas registradas, geral ou por data.',
                 tags: ['Queimadas'],
                 operationId: 'getQueimadas',
-                response: {
-                    [StatusCodes.OK]: z.object({
-                        queimadas: z.array(
-                            z.object({
-                                id: z.string(),
-                                date: z.date(),
-                                bbox: z.array(z.number())
-                            })
-                        ),
-                    }),
-                    [StatusCodes.INTERNAL_SERVER_ERROR]: z.object({
-                        message: z.string(),
-                    }),
-                },
-            },
-        },
-        async (request, reply) => {
-            const controller = new QueimadaController()
-
-            const [error, data] = await catchError(controller.getQueimadas())
-
-            if (error) {
-                return reply.status(error.statusCode).send({
-                    message: error.message,
-                })
-            }
-            return reply.status(StatusCodes.OK).send({
-                queimadas: data,
-            })
-        }
-    )
-
-    app.get(
-        '/queimadas/:date',
-        {
-            schema: {
-                summary: 'Lista de queimadas registradas por data',
-                tags: ['Queimadas'],
-                operationId: 'getQueimadasData',
-                params: z.object({
-                    date: z.string().refine((val) => !isNaN(Date.parse(val)), {
-                        message: 'Invalid date format',
+                querystring: z.object({
+                    date: z.string().optional().refine(val => !val || !isNaN(Date.parse(val)), {
+                        message: 'Formato de data invalido'
                     }),
                 }),
                 response: {
@@ -74,17 +35,24 @@ export const queimadaRoute: FastifyPluginAsyncZod = async app => {
         },
         async (request, reply) => {
             const controller = new QueimadaController()
-            const { date } = request.params as { date: string }
+            const { date } = request.query as { date?: string}
 
-            const [error, data] = await catchError(controller.getQueimadasData(new Date(date)))
+            let error, data
 
-            if (error) {
+            if (date) {
+                [error, data] = await catchError(controller.getQueimadas())
+            } else {
+                [error, data] = await catchError(controller.getQueimadas())
+            }
+
+            if(error) {
                 return reply.status(error.statusCode).send({
                     message: error.message,
                 })
             }
+            
             return reply.status(StatusCodes.OK).send({
-                queimadas: data,
+                queimadas: data ?? [],
             })
         }
     )
