@@ -6,7 +6,12 @@ import { z } from "zod";
 var envSchema = z.object({
   PORT: z.coerce.number().default(3333),
   POSTGRES_URL: z.string().url(),
-  WEB_URL: z.string().url()
+  WEB_URL: z.string().url(),
+  AWS_REGION: z.string(),
+  AWS_ACCESS_KEY_ID: z.string(),
+  AWS_SECRET_ACCESS_KEY: z.string(),
+  S3_BUCKET_NAME: z.string(),
+  CLOUD_FRONT_CDN: z.string().url()
 });
 var env = envSchema.parse(process.env);
 
@@ -531,12 +536,12 @@ async function logger(app2) {
 }
 
 // src/config/plugins.ts
-import fastifyMultipart from "fastify-multipart";
+import multipart from "@fastify/multipart";
 function registerPlugins(app2) {
   app2.register(fastifyCors, {
     origin: [portSettings.BASE_URL, portSettings.WEB_URL]
   });
-  app2.register(fastifyMultipart);
+  app2.register(multipart);
   app2.register(fastifySwagger, {
     openapi: {
       info: {
@@ -579,40 +584,49 @@ var registerPrefix = (routes3, prefix) => {
 // src/routes/upload.ts
 import z2 from "zod";
 
-// src/aws/uploadToS3.ts
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { v4 as uuidv4 } from "uuid";
+// src/drizzle/client.ts
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
-// src/aws/s3.ts
-import { S3Client } from "@aws-sdk/client-s3";
-var s3 = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-  }
+// src/drizzle/schemas/processImage.ts
+import {
+  integer,
+  pgTable,
+  serial,
+  timestamp,
+  varchar
+} from "drizzle-orm/pg-core";
+var processImage = pgTable("process_image", {
+  id: serial("id").primaryKey(),
+  fileLink: varchar("file_link").notNull(),
+  referencesId: integer("references_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  removedAt: timestamp("removed_at")
 });
 
-// src/aws/uploadToS3.ts
-import path from "path";
-async function uploadToS3(fileBuffer, fileName, mimeType, folder) {
-  const bucketName = process.env.S3_BUCKET_NAME;
-  const fileExtension = path.extname(fileName);
-  const newFileName = `${uuidv4()}${fileExtension}`;
-  const cdnUrl = process.env.CLOUD_FRONT_CDN;
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: `${folder}/${newFileName}`,
-    Body: fileBuffer,
-    ContentType: mimeType,
-    ACL: "private"
-  });
-  await s3.send(command);
-  return {
-    url: `${cdnUrl}/${folder}/${newFileName}`,
-    originalFileName: fileName
-  };
-}
+// src/drizzle/schemas/uploads.ts
+import {
+  pgTable as pgTable2,
+  serial as serial2,
+  timestamp as timestamp2,
+  varchar as varchar2
+} from "drizzle-orm/pg-core";
+var uploads = pgTable2("uploads", {
+  id: serial2("id").primaryKey(),
+  url: varchar2("url").notNull(),
+  originalFileName: varchar2("original_filename").notNull(),
+  createdAt: timestamp2("created_at").defaultNow(),
+  removedAt: timestamp2("removed_at")
+});
+
+// src/drizzle/client.ts
+var pg = postgres(env.POSTGRES_URL, {});
+var db = drizzle(pg, {
+  schema: {
+    processImage,
+    uploads
+  }
+});
 
 // src/errors/custom/CustomError.ts
 var CustomError = class extends Error {
@@ -640,6 +654,46 @@ async function catchError(promise, customError) {
   }
 }
 
+// src/aws/uploadToS3.ts
+import path from "node:path";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { v4 as uuidv4 } from "uuid";
+
+// src/aws/s3.ts
+import { S3Client } from "@aws-sdk/client-s3";
+var s3 = new S3Client({
+  region: env.AWS_REGION,
+  credentials: {
+    accessKeyId: env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: env.AWS_SECRET_ACCESS_KEY
+  }
+});
+
+// src/aws/uploadToS3.ts
+async function uploadToS3({
+  fileBuffer,
+  fileName,
+  folder,
+  mimeType
+}) {
+  const bucketName = env.S3_BUCKET_NAME;
+  const fileExtension = path.extname(fileName);
+  const newFileName = `${uuidv4()}${fileExtension}`;
+  const cdnUrl = env.CLOUD_FRONT_CDN;
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: `${folder}/${newFileName}`,
+    Body: fileBuffer,
+    ContentType: mimeType,
+    ACL: "private"
+  });
+  await s3.send(command);
+  return {
+    url: `${cdnUrl}/${folder}/${newFileName}`,
+    originalFileName: fileName
+  };
+}
+
 // src/routes/upload.ts
 var uploadRoute = async (app2) => {
   app2.post(
@@ -650,11 +704,6 @@ var uploadRoute = async (app2) => {
         tags: ["Upload"],
         operationId: "uploadFile",
         consumes: ["multipart/form-data"],
-        body: z2.object({
-          file: z2.any().refine((file) => !!file, {
-            message: "Arquivo \xE9 obrigat\xF3rio"
-          })
-        }),
         response: {
           [200 /* OK */]: z2.object({
             url: z2.string().url(),
@@ -673,26 +722,142 @@ var uploadRoute = async (app2) => {
         return reply.status(400).send({ message: "Nenhum arquivo enviado" });
       }
       const chunks = [];
-      for await (const chunk of data.file) {
-        chunks.push(chunk);
-      }
+      for await (const chunk of data.file) chunks.push(chunk);
       const buffer = Buffer.concat(chunks);
       const folder = "uploads";
       const [error, uploadResult] = await catchError(
-        uploadToS3(buffer, data.filename, data.mimetype, folder)
+        uploadToS3({
+          fileBuffer: buffer,
+          fileName: data.filename,
+          mimeType: data.mimetype,
+          folder
+        })
       );
       if (error) {
         return reply.status(500 /* INTERNAL_SERVER_ERROR */).send({
           message: error.message
         });
       }
-      return reply.status(200 /* OK */).send(uploadResult);
+      try {
+        await db.insert(uploads).values({
+          url: uploadResult.url,
+          originalFileName: uploadResult.originalFileName
+        });
+        return reply.status(200 /* OK */).send(uploadResult);
+      } catch (dbError) {
+        return reply.status(500 /* INTERNAL_SERVER_ERROR */).send({
+          message: "Erro ao salvar no banco de dados"
+        });
+      }
+    }
+  );
+};
+
+// src/routes/queimada/queimada.ts
+import z3 from "zod";
+
+// src/controllers/QueimadaController.ts
+var MOCK_QUEIMADA = [
+  { id: "1", date: /* @__PURE__ */ new Date("2025-01-01"), bbox: [-46.2, -23.6, -43, 9, -21.9] }
+];
+var QueimadaController = class {
+  async getQueimadas() {
+    return MOCK_QUEIMADA;
+  }
+  async getQueimadasData(date) {
+    const queimadas = await this.getQueimadas();
+    const filtered = queimadas.filter((queimada) => queimada.date === date);
+    if (filtered.length === 0) {
+      throw new CustomError("Nenhum dado encontrado", 404);
+    }
+    return filtered;
+  }
+};
+
+// src/routes/queimada/queimada.ts
+var queimadaRoute = async (app2) => {
+  app2.get(
+    "/queimadas",
+    {
+      schema: {
+        summary: "Lista de queimadas registradas",
+        tags: ["Queimadas"],
+        operationId: "getQueimadas",
+        response: {
+          [200 /* OK */]: z3.object({
+            queimadas: z3.array(
+              z3.object({
+                id: z3.string(),
+                date: z3.date(),
+                bbox: z3.array(z3.number())
+              })
+            )
+          }),
+          [500 /* INTERNAL_SERVER_ERROR */]: z3.object({
+            message: z3.string()
+          })
+        }
+      }
+    },
+    async (request, reply) => {
+      const controller = new QueimadaController();
+      const [error, data] = await catchError(controller.getQueimadas());
+      if (error) {
+        return reply.status(error.statusCode).send({
+          message: error.message
+        });
+      }
+      return reply.status(200 /* OK */).send({
+        queimadas: data
+      });
+    }
+  );
+  app2.get(
+    "/queimadas/:date",
+    {
+      schema: {
+        summary: "Lista de queimadas registradas por data",
+        tags: ["Queimadas"],
+        operationId: "getQueimadasData",
+        params: z3.object({
+          date: z3.string().refine((val) => !isNaN(Date.parse(val)), {
+            message: "Invalid date format"
+          })
+        }),
+        response: {
+          [200 /* OK */]: z3.object({
+            queimadas: z3.array(
+              z3.object({
+                id: z3.string(),
+                date: z3.date(),
+                bbox: z3.array(z3.number())
+              })
+            )
+          }),
+          [500 /* INTERNAL_SERVER_ERROR */]: z3.object({
+            message: z3.string()
+          })
+        }
+      }
+    },
+    async (request, reply) => {
+      const controller = new QueimadaController();
+      const { date } = request.params;
+      const [error, data] = await catchError(controller.getQueimadasData(new Date(date)));
+      if (error) {
+        return reply.status(error.statusCode).send({
+          message: error.message
+        });
+      }
+      return reply.status(200 /* OK */).send({
+        queimadas: data
+      });
     }
   );
 };
 
 // src/routes/example/hello-world.ts
-import z3 from "zod";
+import z4 from "zod";
 
 // src/controllers/ExampleController.ts
 var ExampleController = class {
@@ -720,11 +885,11 @@ var helloWorldRoute = async (app2) => {
         // params: z.object({}),
         // query: z.object({}),
         response: {
-          [200 /* OK */]: z3.object({
-            message: z3.string()
+          [200 /* OK */]: z4.object({
+            message: z4.string()
           }),
-          [500 /* INTERNAL_SERVER_ERROR */]: z3.object({
-            message: z3.string()
+          [500 /* INTERNAL_SERVER_ERROR */]: z4.object({
+            message: z4.string()
           })
         }
       }
@@ -745,8 +910,8 @@ var helloWorldRoute = async (app2) => {
 };
 
 // src/routes/example/index.ts
-var routes = [helloWorldRoute, uploadRoute];
-var exampleRoute = "/example";
+var routes = [helloWorldRoute, uploadRoute, queimadaRoute];
+var exampleRoute = "/api";
 var exampleRoutes = registerPrefix(routes, exampleRoute);
 
 // src/routes/index.ts

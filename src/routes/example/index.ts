@@ -4,6 +4,7 @@ import { helloWorldRoute } from './hello-world'
 
 const routes: IRoutes = [{ route: helloWorldRoute, private: false }]
 
-const exampleRoute = '/example'
+
+const exampleRoute = '/api'
 
 export const exampleRoutes = registerPrefix(routes, exampleRoute)
