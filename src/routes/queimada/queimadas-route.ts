@@ -6,7 +6,7 @@ import { catchError } from '#/utils/catchError'
 
 export const getQueimadaRoute: FastifyPluginAsyncZod = async app => {
   app.get(
-    '/queimadas',
+    '',
     {
       schema: {
         summary: 'Lista de queimadas registradas, geral ou por data.',
