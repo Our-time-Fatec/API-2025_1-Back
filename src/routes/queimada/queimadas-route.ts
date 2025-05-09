@@ -4,7 +4,7 @@ import { QueimadaController } from '#/controllers/QueimadaController'
 import { StatusCodes } from '#/enums/status-code'
 import { catchError } from '#/utils/catchError'
 
-export const queimadaRoute: FastifyPluginAsyncZod = async app => {
+export const getQueimadaRoute: FastifyPluginAsyncZod = async app => {
   app.get(
     '/queimadas',
     {
