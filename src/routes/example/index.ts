@@ -1,9 +1,10 @@
+import type { IRoutes } from '#/@types/routes/IRoutes'
 import { registerPrefix } from '#/utils/registerPrefix'
-import { uploadRoute } from '../upload'
 import { helloWorldRoute } from './hello-world'
 
-const routes = [helloWorldRoute, uploadRoute]
+const routes: IRoutes = [{ route: helloWorldRoute, private: false }]
 
-const exampleRoute = '/example'
+
+const exampleRoute = '/api'
 
 export const exampleRoutes = registerPrefix(routes, exampleRoute)
