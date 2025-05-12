@@ -11,7 +11,9 @@ var envSchema = z.object({
   AWS_ACCESS_KEY_ID: z.string(),
   AWS_SECRET_ACCESS_KEY: z.string(),
   S3_BUCKET_NAME: z.string(),
-  CLOUD_FRONT_CDN: z.string().url()
+  CLOUD_FRONT_CDN: z.string().url(),
+  JWT_SECRET: z.string(),
+  JWT_REFRESH_SECRET: z.string()
 });
 var env = envSchema.parse(process.env);
 
@@ -572,16 +574,78 @@ function registerPlugins(app2) {
   app2.setValidatorCompiler(validatorCompiler);
 }
 
+// src/controllers/AuthController.ts
+import jwt from "jsonwebtoken";
+var AuthController = class {
+  JWT_EXPIRES_IN = 24 * 60 * 60;
+  REFRESH_EXPIRES_IN = 30 * 24 * 60 * 60;
+  JWT_SECRET = env.JWT_SECRET;
+  REFRESH_SECRET = env.JWT_REFRESH_SECRET;
+  verifyToken(token) {
+    return jwt.verify(token, this.JWT_SECRET);
+  }
+  verifyRefreshToken(token) {
+    return jwt.verify(token, this.REFRESH_SECRET);
+  }
+  generateToken(id, email) {
+    return jwt.sign({ id, email }, this.JWT_SECRET, {
+      expiresIn: this.JWT_EXPIRES_IN
+    });
+  }
+  generateRefreshToken(id, email) {
+    return jwt.sign({ id, email }, this.REFRESH_SECRET, {
+      expiresIn: this.REFRESH_EXPIRES_IN
+    });
+  }
+};
+
+// src/middleware/authMiddleware.ts
+var authMiddleware = async (request, reply) => {
+  const authHeader = request.headers.authorization;
+  if (!authHeader) {
+    return reply.status(401).send({ message: "Token n\xE3o fornecido" });
+  }
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return reply.status(401).send({ message: "Token mal formatado" });
+  }
+  try {
+    const authInstance = new AuthController();
+    const decoded = authInstance.verifyToken(token);
+    if (request.method === "GET") {
+      request.query = {
+        ...typeof request.query === "object" ? request.query : {},
+        id: decoded.id
+      };
+    } else {
+      request.body = {
+        ...typeof request.body === "object" ? request.body : {},
+        id: decoded.id
+      };
+    }
+  } catch (err) {
+    return reply.status(403).send({ message: "Token inv\xE1lido ou expirado" });
+  }
+};
+
 // src/utils/registerPrefix.ts
-var registerPrefix = (routes3, prefix) => {
+var registerPrefix = (routes6, prefix) => {
   return async (app2) => {
-    for (const route of routes3) {
-      app2.register(route, { prefix });
+    for (const { route, private: isPrivate } of routes6) {
+      app2.register(
+        async (subApp) => {
+          if (isPrivate) {
+            subApp.addHook("preHandler", authMiddleware);
+          }
+          await route(subApp, {});
+        },
+        { prefix }
+      );
     }
   };
 };
 
-// src/routes/upload.ts
+// src/routes/aws/upload.ts
 import z2 from "zod";
 
 // src/drizzle/client.ts
@@ -694,10 +758,10 @@ async function uploadToS3({
   };
 }
 
-// src/routes/upload.ts
+// src/routes/aws/upload.ts
 var uploadRoute = async (app2) => {
   app2.post(
-    "/upload",
+    "",
     {
       schema: {
         summary: "Upload de arquivo para S3",
@@ -753,111 +817,13 @@ var uploadRoute = async (app2) => {
   );
 };
 
-// src/routes/queimada/queimada.ts
-import z3 from "zod";
-
-// src/controllers/QueimadaController.ts
-var MOCK_QUEIMADA = [
-  { id: "1", date: /* @__PURE__ */ new Date("2025-01-01"), bbox: [-46.2, -23.6, -43, 9, -21.9] }
-];
-var QueimadaController = class {
-  async getQueimadas() {
-    return MOCK_QUEIMADA;
-  }
-  async getQueimadasData(date) {
-    const queimadas = await this.getQueimadas();
-    const filtered = queimadas.filter((queimada) => queimada.date === date);
-    if (filtered.length === 0) {
-      throw new CustomError("Nenhum dado encontrado", 404);
-    }
-    return filtered;
-  }
-};
-
-// src/routes/queimada/queimada.ts
-var queimadaRoute = async (app2) => {
-  app2.get(
-    "/queimadas",
-    {
-      schema: {
-        summary: "Lista de queimadas registradas",
-        tags: ["Queimadas"],
-        operationId: "getQueimadas",
-        response: {
-          [200 /* OK */]: z3.object({
-            queimadas: z3.array(
-              z3.object({
-                id: z3.string(),
-                date: z3.date(),
-                bbox: z3.array(z3.number())
-              })
-            )
-          }),
-          [500 /* INTERNAL_SERVER_ERROR */]: z3.object({
-            message: z3.string()
-          })
-        }
-      }
-    },
-    async (request, reply) => {
-      const controller = new QueimadaController();
-      const [error, data] = await catchError(controller.getQueimadas());
-      if (error) {
-        return reply.status(error.statusCode).send({
-          message: error.message
-        });
-      }
-      return reply.status(200 /* OK */).send({
-        queimadas: data
-      });
-    }
-  );
-  app2.get(
-    "/queimadas/:date",
-    {
-      schema: {
-        summary: "Lista de queimadas registradas por data",
-        tags: ["Queimadas"],
-        operationId: "getQueimadasData",
-        params: z3.object({
-          date: z3.string().refine((val) => !isNaN(Date.parse(val)), {
-            message: "Invalid date format"
-          })
-        }),
-        response: {
-          [200 /* OK */]: z3.object({
-            queimadas: z3.array(
-              z3.object({
-                id: z3.string(),
-                date: z3.date(),
-                bbox: z3.array(z3.number())
-              })
-            )
-          }),
-          [500 /* INTERNAL_SERVER_ERROR */]: z3.object({
-            message: z3.string()
-          })
-        }
-      }
-    },
-    async (request, reply) => {
-      const controller = new QueimadaController();
-      const { date } = request.params;
-      const [error, data] = await catchError(controller.getQueimadasData(new Date(date)));
-      if (error) {
-        return reply.status(error.statusCode).send({
-          message: error.message
-        });
-      }
-      return reply.status(200 /* OK */).send({
-        queimadas: data
-      });
-    }
-  );
-};
+// src/routes/aws/index.ts
+var routes = [{ route: uploadRoute, private: true }];
+var uploadPrefix = "/upload";
+var uploadRoutes = registerPrefix(routes, uploadPrefix);
 
 // src/routes/example/hello-world.ts
-import z4 from "zod";
+import z3 from "zod";
 
 // src/controllers/ExampleController.ts
 var ExampleController = class {
@@ -883,13 +849,15 @@ var helloWorldRoute = async (app2) => {
         operationId: "helloWorld",
         // body: z.object({}),
         // params: z.object({}),
-        // query: z.object({}),
+        // body: z.object({
+        //   name: z.string(),
+        // }),
         response: {
-          [200 /* OK */]: z4.object({
-            message: z4.string()
+          [200 /* OK */]: z3.object({
+            message: z3.string()
           }),
-          [500 /* INTERNAL_SERVER_ERROR */]: z4.object({
-            message: z4.string()
+          [500 /* INTERNAL_SERVER_ERROR */]: z3.object({
+            message: z3.string()
           })
         }
       }
@@ -910,16 +878,368 @@ var helloWorldRoute = async (app2) => {
 };
 
 // src/routes/example/index.ts
-var routes = [helloWorldRoute, uploadRoute, queimadaRoute];
+var routes2 = [{ route: helloWorldRoute, private: false }];
 var exampleRoute = "/api";
-var exampleRoutes = registerPrefix(routes, exampleRoute);
+var exampleRoutes = registerPrefix(routes2, exampleRoute);
+
+// src/routes/queimada/queimadas-route.ts
+import z4 from "zod";
+
+// src/controllers/QueimadaController.ts
+var MOCK_QUEIMADA = [
+  { id: "1", date: /* @__PURE__ */ new Date("2025-01-01"), bbox: [-46.2, -23.6, -43.9, -21.9] }
+];
+var QueimadaController = class {
+  async getQueimadas({ date }) {
+    const queimadas = MOCK_QUEIMADA;
+    if (!date) return queimadas;
+    const filtered = queimadas.filter((q) => q.date.getTime() === date.getTime());
+    if (filtered.length === 0) {
+      throw new CustomError("Nenhum dado encontrado", 404);
+    }
+    return filtered;
+  }
+};
+
+// src/routes/queimada/queimadas-route.ts
+var getQueimadaRoute = async (app2) => {
+  app2.get(
+    "",
+    {
+      schema: {
+        summary: "Lista de queimadas registradas, geral ou por data.",
+        tags: ["Queimadas"],
+        operationId: "getQueimadas",
+        querystring: z4.object({
+          date: z4.coerce.date().optional()
+        }),
+        response: {
+          [200 /* OK */]: z4.object({
+            queimadas: z4.array(
+              z4.object({
+                id: z4.string(),
+                date: z4.date(),
+                bbox: z4.array(z4.number())
+              })
+            )
+          }),
+          [500 /* INTERNAL_SERVER_ERROR */]: z4.object({
+            message: z4.string()
+          })
+        }
+      }
+    },
+    async (request, reply) => {
+      const controller = new QueimadaController();
+      const { date } = request.query;
+      const [error, data] = await catchError(controller.getQueimadas({ date }));
+      if (error) {
+        return reply.status(error.statusCode).send({
+          message: error.message
+        });
+      }
+      return reply.status(200 /* OK */).send({
+        queimadas: data
+      });
+    }
+  );
+};
+
+// src/routes/queimada/index.ts
+var routes3 = [{ route: getQueimadaRoute, private: false }];
+var queimadaRoute = "/queimadas";
+var queimadaRoutes = registerPrefix(routes3, queimadaRoute);
+
+// src/routes/user/login-route.ts
+import z6 from "zod";
+
+// src/controllers/UserController.ts
+import * as SQL from "drizzle-orm";
+
+// src/drizzle/schemas/user.ts
+import {
+  pgTable as pgTable3,
+  serial as serial3,
+  timestamp as timestamp3,
+  varchar as varchar3
+} from "drizzle-orm/pg-core";
+var users = pgTable3("users", {
+  id: serial3("id").primaryKey(),
+  name: varchar3("name", { length: 60 }).notNull(),
+  email: varchar3("email").notNull().unique(),
+  password: varchar3("password", { length: 100 }).notNull(),
+  createdAt: timestamp3("created_at").notNull().defaultNow(),
+  updatedAt: timestamp3("updated_at"),
+  removedAt: timestamp3("removed_at")
+});
+
+// src/controllers/CryptoController.ts
+import bcrypt from "bcryptjs";
+var CryptoController = class {
+  saltRounds;
+  constructor() {
+    this.saltRounds = 7;
+  }
+  async hashPassword(password) {
+    return await bcrypt.hash(password, this.saltRounds);
+  }
+  async verifyPasswordMatch(password, hash) {
+    return await bcrypt.compare(password, hash);
+  }
+  async verifyPassword(password, hash) {
+    const isValidPassword = await this.verifyPasswordMatch(password, hash);
+    if (!isValidPassword) {
+      throw new Error("Senha inv\xE1lida");
+    }
+  }
+};
+
+// src/controllers/UserController.ts
+var UserController = class {
+  async login({ email, password }) {
+    const cryptoInstance = new CryptoController();
+    const authInstance = new AuthController();
+    const result = await db.select().from(users).where(SQL.eq(users.email, email));
+    if (result.length === 0) {
+      throw new CustomError("Usu\xE1rio n\xE3o encontrado", 404, "NOT_FOUND_USER");
+    }
+    const user = result[0];
+    await cryptoInstance.verifyPassword(password, user.password);
+    if (user.removedAt) {
+      const existentUser = await db.update(users).set({ removedAt: null }).where(SQL.eq(users.id, user.id)).returning();
+      const token2 = authInstance.generateToken(
+        existentUser[0].id,
+        existentUser[0].email
+      );
+      const refreshToken2 = authInstance.generateRefreshToken(
+        existentUser[0].id,
+        existentUser[0].email
+      );
+      return {
+        id: existentUser[0].id,
+        name: existentUser[0].name,
+        email: existentUser[0].email,
+        token: token2,
+        refreshToken: refreshToken2
+      };
+    }
+    const token = authInstance.generateToken(user.id, user.email);
+    const refreshToken = authInstance.generateRefreshToken(user.id, user.email);
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      token,
+      refreshToken
+    };
+  }
+  async register({ name, email, password }) {
+    const cryptoInstance = new CryptoController();
+    const authInstance = new AuthController();
+    const hashedPassword = await cryptoInstance.hashPassword(password);
+    const result = await db.insert(users).values({
+      name,
+      email,
+      password: hashedPassword
+    }).returning();
+    const token = authInstance.generateToken(result[0].id, result[0].email);
+    const refreshToken = authInstance.generateRefreshToken(
+      result[0].id,
+      result[0].email
+    );
+    return {
+      id: result[0].id,
+      name: result[0].name,
+      email: result[0].email,
+      token,
+      refreshToken
+    };
+  }
+  async updateUser({ id, name, email, password }) {
+    const cryptoInstance = new CryptoController();
+    if (!id) {
+      throw new CustomError(
+        "ID do usu\xE1rio n\xE3o informado",
+        400,
+        "BAD_REQUEST_ID_USER"
+      );
+    }
+    const user = await db.select().from(users).where(SQL.eq(users.id, id));
+    if (user.length === 0) {
+      throw new CustomError("Usu\xE1rio n\xE3o encontrado", 404, "NOT_FOUND_USER");
+    }
+    const hashedPassword = password ? await cryptoInstance.hashPassword(password) : user[0].password;
+    const result = await db.update(users).set({
+      name: name || user[0].name,
+      email: email || user[0].email,
+      password: hashedPassword
+    }).where(SQL.eq(users.id, id)).returning();
+    return {
+      id: result[0].id,
+      name: result[0].name,
+      email: result[0].email,
+      createdAt: result[0].createdAt
+    };
+  }
+};
+
+// src/routes/user/schema/zod.ts
+import { z as z5 } from "zod";
+var userSchema = z5.object({
+  id: z5.number(),
+  name: z5.string().min(3).max(60),
+  email: z5.string().email(),
+  token: z5.string(),
+  refreshToken: z5.string()
+});
+var updateUserSchema = userSchema.omit({
+  token: true,
+  refreshToken: true
+}).extend({ password: z5.string().optional() }).partial();
+var responseUpdateUserSchema = userSchema.omit({
+  token: true,
+  refreshToken: true
+}).extend({ createdAt: z5.date() });
+var loginSchema = userSchema.pick({ email: true }).extend({
+  password: z5.string().min(6).max(60)
+});
+var registerSchema = userSchema.omit({
+  token: true,
+  refreshToken: true,
+  id: true
+}).extend({
+  password: z5.string().min(6).max(60)
+});
+
+// src/routes/user/login-route.ts
+var loginUserRoute = async (app2) => {
+  app2.post(
+    "/login",
+    {
+      schema: {
+        summary: "Login an user",
+        tags: ["User"],
+        operationId: "login",
+        body: loginSchema,
+        response: {
+          [200 /* OK */]: userSchema,
+          [500 /* INTERNAL_SERVER_ERROR */]: z6.object({
+            message: z6.string()
+          })
+        }
+      }
+    },
+    async (request, reply) => {
+      const { email, password } = request.body;
+      const userController = new UserController();
+      const [error, data] = await catchError(
+        userController.login({ email, password })
+      );
+      if (error) {
+        return reply.status(error.statusCode).send({
+          message: error.message
+        });
+      }
+      return reply.status(200 /* OK */).send({
+        ...data
+      });
+    }
+  );
+};
+
+// src/routes/user/register-route.ts
+import z7 from "zod";
+var registerUserRoute = async (app2) => {
+  app2.post(
+    "/register",
+    {
+      schema: {
+        summary: "Register an user",
+        tags: ["User"],
+        operationId: "registerUser",
+        body: registerSchema,
+        response: {
+          [200 /* OK */]: userSchema,
+          [500 /* INTERNAL_SERVER_ERROR */]: z7.object({
+            message: z7.string()
+          })
+        }
+      }
+    },
+    async (request, reply) => {
+      const { email, password, name } = request.body;
+      const userController = new UserController();
+      const [error, data] = await catchError(
+        userController.register({ email, password, name })
+      );
+      if (error) {
+        return reply.status(error.statusCode).send({
+          message: error.message
+        });
+      }
+      return reply.status(200 /* OK */).send({
+        ...data
+      });
+    }
+  );
+};
+
+// src/routes/user/update-user-route.ts
+import z8 from "zod";
+var updateUserRoute = async (app2) => {
+  app2.patch(
+    "/edit",
+    {
+      schema: {
+        summary: "Update an user",
+        tags: ["User"],
+        operationId: "updateUser",
+        body: updateUserSchema,
+        response: {
+          [200 /* OK */]: responseUpdateUserSchema,
+          [500 /* INTERNAL_SERVER_ERROR */]: z8.object({
+            message: z8.string()
+          })
+        }
+      }
+    },
+    async (request, reply) => {
+      const { id, email, password, name } = request.body;
+      const userController = new UserController();
+      const [error, data] = await catchError(
+        userController.updateUser({ id, email, password, name })
+      );
+      if (error) {
+        return reply.status(error.statusCode).send({
+          message: error.message
+        });
+      }
+      return reply.status(200 /* OK */).send({
+        ...data
+      });
+    }
+  );
+};
+
+// src/routes/user/index.ts
+var routes4 = [
+  { route: loginUserRoute, private: false },
+  { route: registerUserRoute, private: false },
+  { route: updateUserRoute, private: true }
+];
+var userRoute = "/users";
+var userRoutes = registerPrefix(routes4, userRoute);
 
 // src/routes/index.ts
-var routes2 = [exampleRoutes];
+var routes5 = [];
+routes5.push(exampleRoutes);
+routes5.push(uploadRoutes);
+routes5.push(userRoutes);
+routes5.push(queimadaRoutes);
 
 // src/config/routes.ts
 function registerRoutes(app2) {
-  for (const route of routes2) {
+  for (const route of routes5) {
     app2.register(route);
   }
   app2.setNotFoundHandler((req, res) => {
