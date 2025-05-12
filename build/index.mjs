@@ -1004,7 +1004,12 @@ var UserController = class {
       throw new CustomError("Usu\xE1rio n\xE3o encontrado", 404, "NOT_FOUND_USER");
     }
     const user = result[0];
-    await cryptoInstance.verifyPassword(password, user.password);
+    const [error, _] = await catchError(
+      cryptoInstance.verifyPassword(password, user.password)
+    );
+    if (error) {
+      throw new CustomError("Senha inv\xE1lida", 401, "INVALID_PASSWORD");
+    }
     if (user.removedAt) {
       const existentUser = await db.update(users).set({ removedAt: null }).where(SQL.eq(users.id, user.id)).returning();
       const token2 = authInstance.generateToken(

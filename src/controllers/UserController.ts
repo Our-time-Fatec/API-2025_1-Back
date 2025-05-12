@@ -2,6 +2,7 @@ import * as SQL from 'drizzle-orm'
 import { db } from '#/drizzle/client'
 import { users } from '#/drizzle/schemas/user'
 import { CustomError } from '#/errors/custom/CustomError'
+import { catchError } from '#/utils/catchError'
 import { AuthController } from './AuthController'
 import { CryptoController } from './CryptoController'
 
@@ -39,7 +40,13 @@ export class UserController {
 
     const user = result[0]
 
-    await cryptoInstance.verifyPassword(password, user.password)
+    const [error, _] = await catchError(
+      cryptoInstance.verifyPassword(password, user.password)
+    )
+
+    if (error) {
+      throw new CustomError('Senha inválida', 401, 'INVALID_PASSWORD')
+    }
 
     if (user.removedAt) {
       const existentUser = await db
