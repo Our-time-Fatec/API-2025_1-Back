@@ -40,11 +40,19 @@ export class UserController {
 
     const user = result[0]
 
-    const [error, _] = await catchError(
+    const [error, data] = await catchError(
       cryptoInstance.verifyPassword(password, user.password)
     )
 
     if (error) {
+      throw new CustomError(
+        'Erro ao verificar senha',
+        500,
+        'ERROR_VERIFY_PASSWORD'
+      )
+    }
+
+    if (!data) {
       throw new CustomError('Senha inválida', 401, 'INVALID_PASSWORD')
     }
 

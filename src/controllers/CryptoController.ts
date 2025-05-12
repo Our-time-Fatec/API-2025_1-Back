@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs'
+import { catchError } from '#/utils/catchError'
 
 class CryptoController {
   private saltRounds: number
@@ -18,12 +19,10 @@ class CryptoController {
     return await bcrypt.compare(password, hash)
   }
 
-  async verifyPassword(password: string, hash: string): Promise<void> {
+  async verifyPassword(password: string, hash: string): Promise<boolean> {
     const isValidPassword = await this.verifyPasswordMatch(password, hash)
 
-    if (!isValidPassword) {
-      throw new Error('Senha inválida')
-    }
+    return isValidPassword
   }
 }
 

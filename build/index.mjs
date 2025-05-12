@@ -988,9 +988,7 @@ var CryptoController = class {
   }
   async verifyPassword(password, hash) {
     const isValidPassword = await this.verifyPasswordMatch(password, hash);
-    if (!isValidPassword) {
-      throw new Error("Senha inv\xE1lida");
-    }
+    return isValidPassword;
   }
 };
 
@@ -1004,10 +1002,17 @@ var UserController = class {
       throw new CustomError("Usu\xE1rio n\xE3o encontrado", 404, "NOT_FOUND_USER");
     }
     const user = result[0];
-    const [error, _] = await catchError(
+    const [error, data] = await catchError(
       cryptoInstance.verifyPassword(password, user.password)
     );
     if (error) {
+      throw new CustomError(
+        "Erro ao verificar senha",
+        500,
+        "ERROR_VERIFY_PASSWORD"
+      );
+    }
+    if (!data) {
       throw new CustomError("Senha inv\xE1lida", 401, "INVALID_PASSWORD");
     }
     if (user.removedAt) {
