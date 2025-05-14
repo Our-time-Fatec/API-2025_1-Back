@@ -1,5 +1,5 @@
 services:
-  service-pg-new:
+  service-pg-scar:
     image: bitnami/postgresql
     ports:
       - '5433:5432'
