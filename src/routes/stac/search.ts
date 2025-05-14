@@ -5,6 +5,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import type { Stac } from '#/@types/stac/IResponse'
 import { http } from '#/client/http'
+import { logger } from '#/settings/logger'
 import { catchError } from '#/utils/catchError'
 import { db } from '../../drizzle/client'
 import { stacImages } from '../../drizzle/schemas/metadata'
@@ -45,18 +46,18 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       )
 
       if (fetchError) {
-        console.error('Erro ao buscar dados STAC:', fetchError)
+        logger.error('Erro ao buscar dados STAC:', fetchError)
         return reply.code(500).send({
           message: 'Erro ao buscar dados STAC.',
         })
       }
 
-      console.log('Dados STAC recebidos:', data)
+      logger.success(data)
 
       const features = data.features
 
       if (!features || features.length === 0) {
-        console.log('Nenhum dado encontrado. Contexto:', data.context)
+        logger.warn('Nenhum dado encontrado. Contexto:', data.context)
         return reply.code(404).send({
           message: 'Nenhuma imagem encontrada para os critérios especificados.',
         })
@@ -65,7 +66,7 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       const item = features[0]
       const assets = item.assets
       const availableAssets = Object.keys(assets)
-      console.log('Assets disponíveis:', availableAssets)
+      logger.success('Assets disponíveis:', availableAssets)
 
       let imageUrl = assets.thumbnail?.href || assets.visual?.href
       if (!imageUrl) {
@@ -75,7 +76,7 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       }
 
       imageUrl = imageUrl.replace(/^\/vsicurl\//, '')
-      console.log('Baixando imagem de:', imageUrl)
+      logger.info('Baixando imagem de:', imageUrl)
 
       const fileName = path.basename(imageUrl)
       const imagesDir = path.join(__dirname, '..', '..', 'images')
@@ -108,7 +109,7 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       )
 
       if (errorStream) {
-        console.error('Erro ao baixar a imagem:', errorStream)
+        logger.error('Erro ao baixar a imagem:', errorStream)
         return reply.code(500).send({
           message: 'Erro ao baixar a imagem.',
         })
