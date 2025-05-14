@@ -13,7 +13,8 @@ var envSchema = z.object({
   S3_BUCKET_NAME: z.string(),
   CLOUD_FRONT_CDN: z.string().url(),
   JWT_SECRET: z.string(),
-  JWT_REFRESH_SECRET: z.string()
+  JWT_REFRESH_SECRET: z.string(),
+  DEBUG_LEVEL: z.coerce.boolean().optional().default(false)
 });
 var env = envSchema.parse(process.env);
 
@@ -27,6 +28,7 @@ var version = "0.0.1";
 
 // src/config/plugins.ts
 import { fastifyCors } from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import { fastifySwagger } from "@fastify/swagger";
 import { fastifySwaggerUi } from "@fastify/swagger-ui";
 import {
@@ -506,15 +508,15 @@ var style = `
 
 `;
 
-// src/config/logger.ts
+// src/config/logs.ts
 import pc from "picocolors";
-async function logger(app2) {
+async function logs(app2) {
   let startTime;
-  app2.addHook("onRequest", (request, reply, done) => {
+  app2.addHook("onRequest", (request, reply, done2) => {
     startTime = Date.now();
-    done();
+    done2();
   });
-  app2.addHook("onResponse", (request, reply, done) => {
+  app2.addHook("onResponse", (request, reply, done2) => {
     const responseTime = Date.now() - startTime;
     const statusCode = reply.statusCode;
     let statusColor = pc.green;
@@ -533,12 +535,11 @@ async function logger(app2) {
         )
       );
     }
-    done();
+    done2();
   });
 }
 
 // src/config/plugins.ts
-import multipart from "@fastify/multipart";
 function registerPlugins(app2) {
   app2.register(fastifyCors, {
     origin: [portSettings.BASE_URL, portSettings.WEB_URL]
@@ -569,7 +570,7 @@ function registerPlugins(app2) {
       css: [{ filename: "theme.css", content: style }]
     }
   });
-  logger(app2);
+  logs(app2);
   app2.setSerializerCompiler(serializerCompiler);
   app2.setValidatorCompiler(validatorCompiler);
 }
@@ -629,9 +630,9 @@ var authMiddleware = async (request, reply) => {
 };
 
 // src/utils/registerPrefix.ts
-var registerPrefix = (routes6, prefix) => {
+var registerPrefix = (routes7, prefix) => {
   return async (app2) => {
-    for (const { route, private: isPrivate } of routes6) {
+    for (const { route, private: isPrivate } of routes7) {
       app2.register(
         async (subApp) => {
           if (isPrivate) {
@@ -683,12 +684,32 @@ var uploads = pgTable2("uploads", {
   removedAt: timestamp2("removed_at")
 });
 
+// src/drizzle/schemas/image.ts
+import { pgTable as pgTable3, serial as serial3, varchar as varchar3, timestamp as timestamp3, doublePrecision } from "drizzle-orm/pg-core";
+var image = pgTable3("image", {
+  id: serial3("id").primaryKey(),
+  // Primary key
+  sensor: varchar3("sensor", { length: 100 }).notNull(),
+  // Sensor name
+  dataCaptura: timestamp3("dataCaptura", { withTimezone: true }).notNull(),
+  // Capture date
+  resolucao: varchar3("resolucao", { length: 20 }),
+  // Resolution
+  latitude: doublePrecision("latitude"),
+  // Latitude
+  longitude: doublePrecision("longitude"),
+  // Longitude
+  urlImage: varchar3("urlImage", { length: 500 }).notNull()
+  // Image URL
+});
+
 // src/drizzle/client.ts
 var pg = postgres(env.POSTGRES_URL, {});
 var db = drizzle(pg, {
   schema: {
     processImage,
-    uploads
+    uploads,
+    image
   }
 });
 
@@ -713,8 +734,8 @@ async function catchError(promise, customError) {
     const result = await promise;
     return [null, result];
   } catch (err) {
-    const error = err instanceof CustomError ? err : customError ? Object.assign(customError, { message: String(err) }) : new CustomError(String(err));
-    return [error, null];
+    const error2 = err instanceof CustomError ? err : customError ? Object.assign(customError, { message: String(err) }) : new CustomError(String(err));
+    return [error2, null];
   }
 }
 
@@ -789,7 +810,7 @@ var uploadRoute = async (app2) => {
       for await (const chunk of data.file) chunks.push(chunk);
       const buffer = Buffer.concat(chunks);
       const folder = "uploads";
-      const [error, uploadResult] = await catchError(
+      const [error2, uploadResult] = await catchError(
         uploadToS3({
           fileBuffer: buffer,
           fileName: data.filename,
@@ -797,9 +818,9 @@ var uploadRoute = async (app2) => {
           folder
         })
       );
-      if (error) {
+      if (error2) {
         return reply.status(500 /* INTERNAL_SERVER_ERROR */).send({
-          message: error.message
+          message: error2.message
         });
       }
       try {
@@ -827,8 +848,8 @@ import z3 from "zod";
 
 // src/controllers/ExampleController.ts
 var ExampleController = class {
-  constructor(error) {
-    this.error = error;
+  constructor(error2) {
+    this.error = error2;
   }
   async getHelloWorld() {
     if (this.error) {
@@ -864,10 +885,10 @@ var helloWorldRoute = async (app2) => {
     },
     async (request, reply) => {
       const exampleController = new ExampleController(false);
-      const [error, data] = await catchError(exampleController.getHelloWorld());
-      if (error) {
-        return reply.status(error.statusCode).send({
-          message: error.message
+      const [error2, data] = await catchError(exampleController.getHelloWorld());
+      if (error2) {
+        return reply.status(error2.statusCode).send({
+          message: error2.message
         });
       }
       return reply.status(200 /* OK */).send({
@@ -932,10 +953,10 @@ var getQueimadaRoute = async (app2) => {
     async (request, reply) => {
       const controller = new QueimadaController();
       const { date } = request.query;
-      const [error, data] = await catchError(controller.getQueimadas({ date }));
-      if (error) {
-        return reply.status(error.statusCode).send({
-          message: error.message
+      const [error2, data] = await catchError(controller.getQueimadas({ date }));
+      if (error2) {
+        return reply.status(error2.statusCode).send({
+          message: error2.message
         });
       }
       return reply.status(200 /* OK */).send({
@@ -950,27 +971,245 @@ var routes3 = [{ route: getQueimadaRoute, private: false }];
 var queimadaRoute = "/queimadas";
 var queimadaRoutes = registerPrefix(routes3, queimadaRoute);
 
+// src/routes/stac/search.ts
+import fs from "node:fs";
+import path2 from "node:path";
+import axios from "axios";
+import { z as z5 } from "zod";
+
+// src/client/http.ts
+async function getBody(c) {
+  return c.json();
+}
+async function http(path3, options = {}) {
+  const request = new Request(path3, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers || {}
+    }
+  });
+  const response = await fetch(request);
+  if (!response.ok) {
+    const errorBody = await response.text();
+    const errorData = errorBody ? JSON.parse(errorBody) : { message: "Erro desconhecido" };
+    throw new Error(errorData.message || `Erro HTTP ${response.status}`);
+  }
+  const data = await getBody(response);
+  return data;
+}
+
+// src/settings/logger.ts
+import pc2 from "picocolors";
+function log(...params) {
+  return console.log(...params);
+}
+function success(...params) {
+  return log(pc2.green("\u2713"), ...params);
+}
+function warn(...params) {
+  return console.warn(pc2.yellow("\u25B2"), ...params);
+}
+function info(...params) {
+  return console.info(pc2.blue("\u2139"), ...params);
+}
+function error(...params) {
+  return console.error(pc2.red("\u2716\uFE0E"), ...params);
+}
+function debug(...params) {
+  if (env.DEBUG_LEVEL) {
+    return console.debug(pc2.magenta("\u{1F41E}"), ...params);
+  }
+}
+function table(data) {
+  return console.table(data);
+}
+function task(...params) {
+  return log(pc2.cyan("\u{1F6E0}"), ...params);
+}
+function pending(...params) {
+  return log(pc2.gray("\u23F3"), ...params);
+}
+function done(...params) {
+  return log(pc2.greenBright("\u2705"), ...params);
+}
+var logger = {
+  log,
+  success,
+  warn,
+  info,
+  debug,
+  error,
+  table,
+  task,
+  pending,
+  done
+};
+
+// src/utils/path.ts
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+var getDirname = () => {
+  if (typeof __dirname !== "undefined") {
+    return __dirname;
+  }
+  return dirname(fileURLToPath(import.meta.url));
+};
+
+// src/drizzle/schemas/metadata.ts
+import { pgTable as pgTable4, text, timestamp as timestamp4, uuid, jsonb } from "drizzle-orm/pg-core";
+var stacImages = pgTable4("stac_images", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  itemId: text("item_id").notNull(),
+  collection: text("collection").notNull(),
+  datetime: timestamp4("datetime").notNull(),
+  bbox: jsonb("bbox").notNull(),
+  geometry: jsonb("geometry").notNull(),
+  imageUrl: text("image_url").notNull(),
+  createdAt: timestamp4("created_at").defaultNow(),
+  localPath: text("local_path")
+});
+
+// src/routes/stac/search.ts
+var bodySchema = z5.object({
+  collections: z5.array(z5.string()),
+  bbox: z5.array(z5.number()).length(4),
+  datetime: z5.string(),
+  limit: z5.number().optional()
+});
+var stacSearchRoute = async (app2) => {
+  app2.post(
+    "/search",
+    {
+      schema: {
+        body: bodySchema,
+        summary: "Pesquisar imagens STAC",
+        tags: ["STAC"],
+        operationId: "stacSearch"
+      }
+    },
+    async (request, reply) => {
+      const { collections, bbox, datetime, limit } = request.body;
+      const stacUrl = "https://data.inpe.br/bdc/stac/v1/search";
+      const [fetchError, data] = await catchError(
+        http(stacUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            collections,
+            bbox,
+            datetime,
+            limit: limit || 10
+          })
+        })
+      );
+      if (fetchError) {
+        logger.error("Erro ao buscar dados STAC:", fetchError);
+        return reply.code(500).send({
+          message: "Erro ao buscar dados STAC."
+        });
+      }
+      logger.success(data);
+      const features = data.features;
+      if (!features || features.length === 0) {
+        logger.warn("Nenhum dado encontrado. Contexto:", data.context);
+        return reply.code(404).send({
+          message: "Nenhuma imagem encontrada para os crit\xE9rios especificados."
+        });
+      }
+      const item = features[0];
+      const assets = item.assets;
+      const availableAssets = Object.keys(assets);
+      logger.success("Assets dispon\xEDveis:", availableAssets);
+      let imageUrl = assets.thumbnail?.href || assets.visual?.href;
+      if (!imageUrl) {
+        return reply.code(404).send({
+          message: "Nenhuma imagem com asset visual ou thumbnail dispon\xEDvel."
+        });
+      }
+      imageUrl = imageUrl.replace(/^\/vsicurl\//, "");
+      logger.info("Baixando imagem de:", imageUrl);
+      const fileName = path2.basename(imageUrl);
+      const __dirname2 = getDirname(import.meta.url);
+      const imagesDir = path2.join(__dirname2, "..", "..", "images");
+      if (!fs.existsSync(imagesDir)) {
+        fs.mkdirSync(imagesDir);
+      }
+      const localPath = path2.join(imagesDir, fileName);
+      const [axiosError, imageResponse] = await catchError(
+        axios.get(imageUrl, {
+          responseType: "stream"
+        })
+      );
+      if (axiosError) {
+        return reply.code(500).send({
+          message: "Erro ao baixar a imagem."
+        });
+      }
+      const writer = fs.createWriteStream(localPath);
+      const [errorStream] = await catchError(
+        new Promise((resolve, reject) => {
+          imageResponse.data.pipe(writer);
+          writer.on("finish", resolve);
+          writer.on("error", reject);
+        })
+      );
+      if (errorStream) {
+        logger.error("Erro ao baixar a imagem:", errorStream);
+        return reply.code(500).send({
+          message: "Erro ao baixar a imagem."
+        });
+      }
+      const [dbError] = await catchError(
+        db.insert(stacImages).values({
+          itemId: item.id,
+          collection: item.collection,
+          datetime: new Date(item.properties.datetime),
+          bbox: item.bbox,
+          geometry: item.geometry,
+          imageUrl,
+          localPath
+        })
+      );
+      if (dbError) {
+        return reply.code(500).send({
+          message: "Erro ao salvar imagem no banco de dados."
+        });
+      }
+      return reply.send({
+        message: "Imagem baixada e salva com sucesso.",
+        imagePath: localPath
+      });
+    }
+  );
+};
+
+// src/routes/stac/index.ts
+var routes4 = [{ route: stacSearchRoute, private: false }];
+var burnPrefix = "/stac";
+var burnRoutes = registerPrefix(routes4, burnPrefix);
+
 // src/routes/user/login-route.ts
-import z6 from "zod";
+import z7 from "zod";
 
 // src/controllers/UserController.ts
 import * as SQL from "drizzle-orm";
 
 // src/drizzle/schemas/user.ts
 import {
-  pgTable as pgTable3,
-  serial as serial3,
-  timestamp as timestamp3,
-  varchar as varchar3
+  pgTable as pgTable5,
+  serial as serial4,
+  timestamp as timestamp5,
+  varchar as varchar4
 } from "drizzle-orm/pg-core";
-var users = pgTable3("users", {
-  id: serial3("id").primaryKey(),
-  name: varchar3("name", { length: 60 }).notNull(),
-  email: varchar3("email").notNull().unique(),
-  password: varchar3("password", { length: 100 }).notNull(),
-  createdAt: timestamp3("created_at").notNull().defaultNow(),
-  updatedAt: timestamp3("updated_at"),
-  removedAt: timestamp3("removed_at")
+var users = pgTable5("users", {
+  id: serial4("id").primaryKey(),
+  name: varchar4("name", { length: 60 }).notNull(),
+  email: varchar4("email").notNull().unique(),
+  password: varchar4("password", { length: 100 }).notNull(),
+  createdAt: timestamp5("created_at").notNull().defaultNow(),
+  updatedAt: timestamp5("updated_at"),
+  removedAt: timestamp5("removed_at")
 });
 
 // src/controllers/CryptoController.ts
@@ -1002,10 +1241,10 @@ var UserController = class {
       throw new CustomError("Usu\xE1rio n\xE3o encontrado", 404, "NOT_FOUND_USER");
     }
     const user = result[0];
-    const [error, data] = await catchError(
+    const [error2, data] = await catchError(
       cryptoInstance.verifyPassword(password, user.password)
     );
-    if (error) {
+    if (error2) {
       throw new CustomError(
         "Erro ao verificar senha",
         500,
@@ -1094,31 +1333,31 @@ var UserController = class {
 };
 
 // src/routes/user/schema/zod.ts
-import { z as z5 } from "zod";
-var userSchema = z5.object({
-  id: z5.number(),
-  name: z5.string().min(3).max(60),
-  email: z5.string().email(),
-  token: z5.string(),
-  refreshToken: z5.string()
+import { z as z6 } from "zod";
+var userSchema = z6.object({
+  id: z6.number(),
+  name: z6.string().min(3).max(60),
+  email: z6.string().email(),
+  token: z6.string(),
+  refreshToken: z6.string()
 });
 var updateUserSchema = userSchema.omit({
   token: true,
   refreshToken: true
-}).extend({ password: z5.string().optional() }).partial();
+}).extend({ password: z6.string().optional() }).partial();
 var responseUpdateUserSchema = userSchema.omit({
   token: true,
   refreshToken: true
-}).extend({ createdAt: z5.date() });
+}).extend({ createdAt: z6.date() });
 var loginSchema = userSchema.pick({ email: true }).extend({
-  password: z5.string().min(6).max(60)
+  password: z6.string().min(6).max(60)
 });
 var registerSchema = userSchema.omit({
   token: true,
   refreshToken: true,
   id: true
 }).extend({
-  password: z5.string().min(6).max(60)
+  password: z6.string().min(6).max(60)
 });
 
 // src/routes/user/login-route.ts
@@ -1133,8 +1372,8 @@ var loginUserRoute = async (app2) => {
         body: loginSchema,
         response: {
           [200 /* OK */]: userSchema,
-          [500 /* INTERNAL_SERVER_ERROR */]: z6.object({
-            message: z6.string()
+          [500 /* INTERNAL_SERVER_ERROR */]: z7.object({
+            message: z7.string()
           })
         }
       }
@@ -1142,12 +1381,12 @@ var loginUserRoute = async (app2) => {
     async (request, reply) => {
       const { email, password } = request.body;
       const userController = new UserController();
-      const [error, data] = await catchError(
+      const [error2, data] = await catchError(
         userController.login({ email, password })
       );
-      if (error) {
-        return reply.status(error.statusCode).send({
-          message: error.message
+      if (error2) {
+        return reply.status(error2.statusCode).send({
+          message: error2.message
         });
       }
       return reply.status(200 /* OK */).send({
@@ -1158,7 +1397,7 @@ var loginUserRoute = async (app2) => {
 };
 
 // src/routes/user/register-route.ts
-import z7 from "zod";
+import z8 from "zod";
 var registerUserRoute = async (app2) => {
   app2.post(
     "/register",
@@ -1170,8 +1409,8 @@ var registerUserRoute = async (app2) => {
         body: registerSchema,
         response: {
           [200 /* OK */]: userSchema,
-          [500 /* INTERNAL_SERVER_ERROR */]: z7.object({
-            message: z7.string()
+          [500 /* INTERNAL_SERVER_ERROR */]: z8.object({
+            message: z8.string()
           })
         }
       }
@@ -1179,12 +1418,12 @@ var registerUserRoute = async (app2) => {
     async (request, reply) => {
       const { email, password, name } = request.body;
       const userController = new UserController();
-      const [error, data] = await catchError(
+      const [error2, data] = await catchError(
         userController.register({ email, password, name })
       );
-      if (error) {
-        return reply.status(error.statusCode).send({
-          message: error.message
+      if (error2) {
+        return reply.status(error2.statusCode).send({
+          message: error2.message
         });
       }
       return reply.status(200 /* OK */).send({
@@ -1195,7 +1434,7 @@ var registerUserRoute = async (app2) => {
 };
 
 // src/routes/user/update-user-route.ts
-import z8 from "zod";
+import z9 from "zod";
 var updateUserRoute = async (app2) => {
   app2.patch(
     "/edit",
@@ -1207,8 +1446,8 @@ var updateUserRoute = async (app2) => {
         body: updateUserSchema,
         response: {
           [200 /* OK */]: responseUpdateUserSchema,
-          [500 /* INTERNAL_SERVER_ERROR */]: z8.object({
-            message: z8.string()
+          [500 /* INTERNAL_SERVER_ERROR */]: z9.object({
+            message: z9.string()
           })
         }
       }
@@ -1216,12 +1455,12 @@ var updateUserRoute = async (app2) => {
     async (request, reply) => {
       const { id, email, password, name } = request.body;
       const userController = new UserController();
-      const [error, data] = await catchError(
+      const [error2, data] = await catchError(
         userController.updateUser({ id, email, password, name })
       );
-      if (error) {
-        return reply.status(error.statusCode).send({
-          message: error.message
+      if (error2) {
+        return reply.status(error2.statusCode).send({
+          message: error2.message
         });
       }
       return reply.status(200 /* OK */).send({
@@ -1232,24 +1471,25 @@ var updateUserRoute = async (app2) => {
 };
 
 // src/routes/user/index.ts
-var routes4 = [
+var routes5 = [
   { route: loginUserRoute, private: false },
   { route: registerUserRoute, private: false },
   { route: updateUserRoute, private: true }
 ];
 var userRoute = "/users";
-var userRoutes = registerPrefix(routes4, userRoute);
+var userRoutes = registerPrefix(routes5, userRoute);
 
 // src/routes/index.ts
-var routes5 = [];
-routes5.push(exampleRoutes);
-routes5.push(uploadRoutes);
-routes5.push(userRoutes);
-routes5.push(queimadaRoutes);
+var routes6 = [];
+routes6.push(exampleRoutes);
+routes6.push(uploadRoutes);
+routes6.push(userRoutes);
+routes6.push(queimadaRoutes);
+routes6.push(burnRoutes);
 
 // src/config/routes.ts
 function registerRoutes(app2) {
-  for (const route of routes5) {
+  for (const route of routes6) {
     app2.register(route);
   }
   app2.setNotFoundHandler((req, res) => {

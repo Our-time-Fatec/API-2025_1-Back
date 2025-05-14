@@ -1,4 +1,4 @@
-import { CustomError } from '#/errors/custom/CustomError'
+import { CustomError } from '#/errors/custom/CustomError.js'
 
 type TryCatchResult<T, E = CustomError> =
   | [error: E, result: null]

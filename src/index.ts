@@ -3,6 +3,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { portSettings, registerPlugins, registerRoutes } from '#/config'
 import { env } from '#/settings/env'
 
+
 const app = fastify().withTypeProvider<ZodTypeProvider>()
 
 registerPlugins(app)

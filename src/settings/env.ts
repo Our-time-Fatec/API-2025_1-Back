@@ -11,6 +11,7 @@ const envSchema = z.object({
   CLOUD_FRONT_CDN: z.string().url(),
   JWT_SECRET: z.string(),
   JWT_REFRESH_SECRET: z.string(),
+  DEBUG_LEVEL: z.coerce.boolean().optional().default(false),
 })
 
 export const env = envSchema.parse(process.env)
