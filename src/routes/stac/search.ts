@@ -1,12 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import axios from 'axios'
+import type { Readable } from 'node:stream'
+import axios, { type AxiosResponse } from 'axios'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import type { Stac } from '#/@types/stac/IResponse'
 import { http } from '#/client/http'
+import type { CustomError } from '#/errors/custom/CustomError'
 import { logger } from '#/settings/logger'
 import { catchError } from '#/utils/catchError'
 import { getDirname } from '#/utils/path'
@@ -49,9 +49,10 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       )
 
       if (fetchError) {
+        const { statusCode, message } = fetchError
         logger.error('Erro ao buscar dados STAC:', fetchError)
-        return reply.code(500).send({
-          message: 'Erro ao buscar dados STAC.',
+        return reply.code(statusCode).send({
+          message: `Erro ao buscar dados STAC. Erro: ${message}`,
         })
       }
 
@@ -84,22 +85,25 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       const fileName = path.basename(imageUrl)
       const __dirname = getDirname()
 
-      const imagesDir = path.join(__dirname, '..', '..', 'images')
+      const imagesDir = path.join(__dirname, '..', 'images')
 
       if (!fs.existsSync(imagesDir)) {
         fs.mkdirSync(imagesDir)
       }
 
       const localPath = path.join(imagesDir, fileName)
-      const [axiosError, imageResponse] = await catchError(
+      const [axiosError, imageResponse]:
+        | [CustomError, null]
+        | [null, AxiosResponse<Readable>] = await catchError(
         axios.get(imageUrl, {
           responseType: 'stream',
         })
       )
 
       if (axiosError) {
-        return reply.code(500).send({
-          message: 'Erro ao baixar a imagem.',
+        const { statusCode, message } = axiosError
+        return reply.code(statusCode).send({
+          message: `Erro ao baixar a imagem. Erro: ${message}`,
         })
       }
 
@@ -114,9 +118,11 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       )
 
       if (errorStream) {
+        const { code, message } = errorStream
         logger.error('Erro ao baixar a imagem:', errorStream)
-        return reply.code(500).send({
-          message: 'Erro ao baixar a imagem.',
+
+        return reply.code(Number.parseInt(code)).send({
+          message: `Erro ao baixar a imagem. Erro: ${message}`,
         })
       }
 
@@ -133,8 +139,9 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       )
 
       if (dbError) {
-        return reply.code(500).send({
-          message: 'Erro ao salvar imagem no banco de dados.',
+        const { statusCode, message } = dbError
+        return reply.code(statusCode).send({
+          message: `Erro ao salvar a imagem no banco de dados. Erro: ${message}`,
         })
       }
 

@@ -1104,9 +1104,10 @@ var stacSearchRoute = async (app2) => {
         })
       );
       if (fetchError) {
+        const { statusCode, message } = fetchError;
         logger.error("Erro ao buscar dados STAC:", fetchError);
-        return reply.code(500).send({
-          message: "Erro ao buscar dados STAC."
+        return reply.code(statusCode).send({
+          message: `Erro ao buscar dados STAC. Erro: ${message}`
         });
       }
       logger.success(data);
@@ -1130,8 +1131,8 @@ var stacSearchRoute = async (app2) => {
       imageUrl = imageUrl.replace(/^\/vsicurl\//, "");
       logger.info("Baixando imagem de:", imageUrl);
       const fileName = path2.basename(imageUrl);
-      const __dirname2 = getDirname(import.meta.url);
-      const imagesDir = path2.join(__dirname2, "..", "..", "images");
+      const __dirname2 = getDirname();
+      const imagesDir = path2.join(__dirname2, "..", "images");
       if (!fs.existsSync(imagesDir)) {
         fs.mkdirSync(imagesDir);
       }
@@ -1142,8 +1143,9 @@ var stacSearchRoute = async (app2) => {
         })
       );
       if (axiosError) {
-        return reply.code(500).send({
-          message: "Erro ao baixar a imagem."
+        const { statusCode, message } = axiosError;
+        return reply.code(statusCode).send({
+          message: `Erro ao baixar a imagem. Erro: ${message}`
         });
       }
       const writer = fs.createWriteStream(localPath);
@@ -1155,9 +1157,10 @@ var stacSearchRoute = async (app2) => {
         })
       );
       if (errorStream) {
+        const { code, message } = errorStream;
         logger.error("Erro ao baixar a imagem:", errorStream);
-        return reply.code(500).send({
-          message: "Erro ao baixar a imagem."
+        return reply.code(Number.parseInt(code)).send({
+          message: `Erro ao baixar a imagem. Erro: ${message}`
         });
       }
       const [dbError] = await catchError(
@@ -1172,8 +1175,9 @@ var stacSearchRoute = async (app2) => {
         })
       );
       if (dbError) {
-        return reply.code(500).send({
-          message: "Erro ao salvar imagem no banco de dados."
+        const { statusCode, message } = dbError;
+        return reply.code(statusCode).send({
+          message: `Erro ao salvar a imagem no banco de dados. Erro: ${message}`
         });
       }
       return reply.send({
