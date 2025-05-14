@@ -1,7 +1,6 @@
 export interface Stac {
   type: string
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  links: any[]
+  links: string[]
   context: Context
   features: Feature[]
 }
