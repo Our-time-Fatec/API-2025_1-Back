@@ -8,9 +8,6 @@ export const getDirname = () => {
   }
 
   // ESM
-<<<<<<< HEAD
   // @ts-ignore
-=======
->>>>>>> ce95f30365dedc1bcb405e2b3f5a52705ee1dd32
   return dirname(fileURLToPath(import.meta.url))
 }
