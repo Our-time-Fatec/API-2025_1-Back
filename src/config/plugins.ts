@@ -1,4 +1,5 @@
 import { fastifyCors } from '@fastify/cors'
+import multipart from '@fastify/multipart'
 import { fastifySwagger } from '@fastify/swagger'
 import { fastifySwaggerUi } from '@fastify/swagger-ui'
 import type { FastifyInstance } from 'fastify'
@@ -9,8 +10,7 @@ import {
 } from 'fastify-type-provider-zod'
 import { style } from '#/themes/style'
 import { portSettings, version } from './base-config'
-import { logger } from './logger'
-import multipart from '@fastify/multipart'; 
+import { logs } from './logs'
 export function registerPlugins(app: FastifyInstance) {
   app.register(fastifyCors, {
     origin: [portSettings.BASE_URL, portSettings.WEB_URL],
@@ -44,7 +44,7 @@ export function registerPlugins(app: FastifyInstance) {
     },
   })
 
-  logger(app)
+  logs(app)
 
   app.setSerializerCompiler(serializerCompiler)
   app.setValidatorCompiler(validatorCompiler)
