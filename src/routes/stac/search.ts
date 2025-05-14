@@ -1,5 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import axios from 'axios'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
@@ -7,6 +9,7 @@ import type { Stac } from '#/@types/stac/IResponse'
 import { http } from '#/client/http'
 import { logger } from '#/settings/logger'
 import { catchError } from '#/utils/catchError'
+import { getDirname } from '#/utils/path'
 import { db } from '../../drizzle/client'
 import { stacImages } from '../../drizzle/schemas/metadata'
 
@@ -79,6 +82,8 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       logger.info('Baixando imagem de:', imageUrl)
 
       const fileName = path.basename(imageUrl)
+      const __dirname = getDirname()
+
       const imagesDir = path.join(__dirname, '..', '..', 'images')
 
       if (!fs.existsSync(imagesDir)) {
