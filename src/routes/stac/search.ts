@@ -1,108 +1,141 @@
-import { FastifyInstance, FastifyRequest } from "fastify";
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
-import { db } from "../../drizzle/client";
-import { stacImages } from '../../drizzle/schemas/metadata';
-import { z } from 'zod';
+import fs from 'node:fs'
+import path from 'node:path'
+import axios from 'axios'
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import { z } from 'zod'
+import type { Stac } from '#/@types/stac/IResponse'
+import { http } from '#/client/http'
+import { catchError } from '#/utils/catchError'
+import { db } from '../../drizzle/client'
+import { stacImages } from '../../drizzle/schemas/metadata'
 
 const bodySchema = z.object({
   collections: z.array(z.string()),
   bbox: z.array(z.number()).length(4),
   datetime: z.string(),
-});
+  limit: z.number().optional(),
+})
 
-export async function stacRoutes(app: FastifyInstance) {
+export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
   app.post(
-    '/stac/search',
+    '/search',
     {
       schema: {
-        body: bodySchema
-      }
+        body: bodySchema,
+        summary: 'Pesquisar imagens STAC',
+        tags: ['STAC'],
+        operationId: 'stacSearch',
+      },
     },
-    async (request: FastifyRequest<{ Body: z.infer<typeof bodySchema> }>, reply) => {
+    async (request, reply) => {
+      const { collections, bbox, datetime, limit } = request.body
+      const stacUrl = 'https://data.inpe.br/bdc/stac/v1/search'
 
-      try {
-        const stacUrl = 'https://data.inpe.br/bdc/stac/v1/search';
-        const { collections, bbox, datetime } = request.body;
-
-        const response = await fetch(stacUrl, {
+      const [fetchError, data] = await catchError(
+        http<Stac>(stacUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             collections,
             bbox,
             datetime,
-            limit: 10
-          })
-        });
+            limit: limit || 10,
+          }),
+        })
+      )
 
-        if (!response.ok) {
-          const text = await response.text();
-          console.error('Erro STAC:', response.status, text);
-          return reply.code(response.status).send({ message: 'Erro na requisição STAC', detalhe: text });
-        }
+      if (fetchError) {
+        console.error('Erro ao buscar dados STAC:', fetchError)
+        return reply.code(500).send({
+          message: 'Erro ao buscar dados STAC.',
+        })
+      }
 
-        const raw = await response.text();
-        console.log('Resposta bruta do STAC:', raw);
-        const data = JSON.parse(raw);
-        const features = data.features;
+      console.log('Dados STAC recebidos:', data)
 
-        if (!features || features.length === 0) {
-          console.log("Nenhum dado encontrado. Contexto:", data.context);
-          return reply.code(404).send({ message: 'Nenhuma imagem encontrada para os critérios especificados.' });
-        }
+      const features = data.features
 
-        const item = features[0];
-        const assets = item.assets;
-        const availableAssets = Object.keys(assets);
-        console.log('Assets disponíveis:', availableAssets);
+      if (!features || features.length === 0) {
+        console.log('Nenhum dado encontrado. Contexto:', data.context)
+        return reply.code(404).send({
+          message: 'Nenhuma imagem encontrada para os critérios especificados.',
+        })
+      }
 
-        let imageUrl = assets.thumbnail?.href || assets.visual?.href;
-        if (!imageUrl) {
-          return reply.code(404).send({ message: 'Nenhuma imagem com asset visual ou thumbnail disponível.' });
-        }
+      const item = features[0]
+      const assets = item.assets
+      const availableAssets = Object.keys(assets)
+      console.log('Assets disponíveis:', availableAssets)
 
-        imageUrl = imageUrl.replace(/^\/vsicurl\//, '');
-        console.log('Baixando imagem de:', imageUrl);
+      let imageUrl = assets.thumbnail?.href || assets.visual?.href
+      if (!imageUrl) {
+        return reply.code(404).send({
+          message: 'Nenhuma imagem com asset visual ou thumbnail disponível.',
+        })
+      }
 
-        const fileName = path.basename(imageUrl);
-        const imagesDir = path.join(__dirname, '..', '..', 'images');
+      imageUrl = imageUrl.replace(/^\/vsicurl\//, '')
+      console.log('Baixando imagem de:', imageUrl)
 
-        if (!fs.existsSync(imagesDir)) {
-          fs.mkdirSync(imagesDir);
-        }
+      const fileName = path.basename(imageUrl)
+      const imagesDir = path.join(__dirname, '..', '..', 'images')
 
-        const localPath = path.join(imagesDir, fileName);
-        const imageResponse = await axios.get(imageUrl, { responseType: 'stream' });
-        const writer = fs.createWriteStream(localPath);
+      if (!fs.existsSync(imagesDir)) {
+        fs.mkdirSync(imagesDir)
+      }
 
-        await new Promise<void>((resolve, reject) => {
-          imageResponse.data.pipe(writer);
-          writer.on('finish', resolve);
-          writer.on('error', reject);
-        });
+      const localPath = path.join(imagesDir, fileName)
+      const [axiosError, imageResponse] = await catchError(
+        axios.get(imageUrl, {
+          responseType: 'stream',
+        })
+      )
 
-        // Salva no banco
-        await db.insert(stacImages).values({
+      if (axiosError) {
+        return reply.code(500).send({
+          message: 'Erro ao baixar a imagem.',
+        })
+      }
+
+      const writer = fs.createWriteStream(localPath)
+
+      const [errorStream] = await catchError(
+        new Promise<void>((resolve, reject) => {
+          imageResponse.data.pipe(writer)
+          writer.on('finish', resolve)
+          writer.on('error', reject)
+        })
+      )
+
+      if (errorStream) {
+        console.error('Erro ao baixar a imagem:', errorStream)
+        return reply.code(500).send({
+          message: 'Erro ao baixar a imagem.',
+        })
+      }
+
+      const [dbError] = await catchError(
+        db.insert(stacImages).values({
           itemId: item.id,
           collection: item.collection,
           datetime: new Date(item.properties.datetime),
           bbox: item.bbox,
           geometry: item.geometry,
           imageUrl,
-          localPath
-        });
+          localPath,
+        })
+      )
 
-        return reply.send({
-          message: 'Imagem baixada e salva com sucesso.',
-          imagePath: localPath
-        });
-
-      } catch (error) {
-        console.error(error);
-        return reply.code(500).send({ message: "Erro ao buscar ou salvar imagem." });
+      if (dbError) {
+        return reply.code(500).send({
+          message: 'Erro ao salvar imagem no banco de dados.',
+        })
       }
+
+      return reply.send({
+        message: 'Imagem baixada e salva com sucesso.',
+        imagePath: localPath,
+      })
     }
-  );
-} 
+  )
+}
