@@ -13,7 +13,7 @@ import { getDirname } from '#/utils/path'
 import { db } from '../../drizzle/client'
 import { stacImages } from '../../drizzle/schemas/metadata'
 
-const bodySchema = z.object({
+export const bodySchema = z.object({
   collections: z.array(z.string()),
   bbox: z.array(z.number()).length(4),
   datetime: z.string(),
@@ -58,8 +58,8 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       )
 
       if (fetchError) {
-        const { statusCode, message } = fetchError
-        logger.error('Erro ao buscar dados STAC:', fetchError)
+        const { statusCode, message, stack } = fetchError
+        logger.error('Erro ao buscar dados STAC:', stack)
         return reply.code(statusCode).send({
           message: `Erro ao buscar dados STAC. Erro: ${message}`,
         })
@@ -127,10 +127,10 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       )
 
       if (errorStream) {
-        const { code, message } = errorStream
+        const { statusCode, message } = errorStream
         logger.error('Erro ao baixar a imagem:', errorStream)
 
-        return reply.code(Number.parseInt(code)).send({
+        return reply.code(statusCode).send({
           message: `Erro ao baixar a imagem. Erro: ${message}`,
         })
       }
