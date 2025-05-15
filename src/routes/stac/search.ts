@@ -29,6 +29,15 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
         summary: 'Pesquisar imagens STAC',
         tags: ['STAC'],
         operationId: 'stacSearch',
+        response: {
+          200: z.object({
+            message: z.string(),
+            imagePath: z.string(),
+          }),
+          400: z.object({
+            message: z.string(),
+          }),
+        },
       },
     },
     async (request, reply) => {
