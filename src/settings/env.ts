@@ -4,6 +4,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3333),
   POSTGRES_URL: z.string().url(),
   WEB_URL: z.string().url(),
+  IA_URL: z.string().url(),
   AWS_REGION: z.string(),
   AWS_ACCESS_KEY_ID: z.string(),
   AWS_SECRET_ACCESS_KEY: z.string(),
