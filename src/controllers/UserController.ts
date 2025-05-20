@@ -1,28 +1,15 @@
 import * as SQL from 'drizzle-orm'
+import type {
+  LoginProps,
+  RegisterProps,
+  UpdateUser,
+} from '#/@types/controller/IUser'
 import { db } from '#/drizzle/client'
 import { users } from '#/drizzle/schemas/user'
 import { CustomError } from '#/errors/custom/CustomError'
 import { catchError } from '#/utils/catchError'
 import { AuthController } from './AuthController'
 import { CryptoController } from './CryptoController'
-
-interface LoginProps {
-  email: string
-  password: string
-}
-
-interface RegisterProps {
-  name: string
-  email: string
-  password: string
-}
-
-interface UpdateUser {
-  id?: number
-  name?: string
-  email?: string
-  password?: string
-}
 
 export class UserController {
   public async login({ email, password }: LoginProps) {
