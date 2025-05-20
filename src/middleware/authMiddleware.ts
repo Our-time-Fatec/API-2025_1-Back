@@ -22,11 +22,13 @@ const authMiddleware = async (request: FastifyRequest, reply: FastifyReply) => {
       request.query = {
         ...(typeof request.query === 'object' ? request.query : {}),
         id: decoded.id,
+        token,
       }
     } else {
       request.body = {
         ...(typeof request.body === 'object' ? request.body : {}),
         id: decoded.id,
+        token,
       }
     }
   } catch (err) {
