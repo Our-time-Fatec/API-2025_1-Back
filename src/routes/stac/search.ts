@@ -88,6 +88,8 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
         })
       }
 
+      logger.info(assets)
+
       imageUrl = imageUrl.replace(/^\/vsicurl\//, '')
       logger.info('Baixando imagem de:', imageUrl)
 
@@ -142,8 +144,8 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
           datetime: new Date(item.properties.datetime),
           bbox: item.bbox,
           geometry: item.geometry,
-          imageUrl,
-          localPath,
+          band_15: imageUrl,
+          band_16: localPath,
         })
       )
 

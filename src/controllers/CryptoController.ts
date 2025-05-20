@@ -1,5 +1,4 @@
 import bcrypt from 'bcryptjs'
-import { catchError } from '#/utils/catchError'
 
 class CryptoController {
   private saltRounds: number

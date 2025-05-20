@@ -1,16 +1,17 @@
 import fs from 'node:fs'
 import type { Readable } from 'node:stream'
 import axios, { type AxiosResponse } from 'axios'
+import type { CreateCicatrizProps } from '#/@types/controller/ICicatriz'
+import type {
+  StacHttpInterface,
+  StacModelInterface,
+} from '#/@types/models/IStacModel'
 import type { Feature, Stac } from '#/@types/stac/IResponse'
 import { http } from '#/client/http'
 import { db } from '#/drizzle/client'
 import { stacImages } from '#/drizzle/schemas/metadata'
 import { CustomError } from '#/errors/custom/CustomError'
 import { catchError } from '#/utils/catchError'
-import type {
-  StacHttpInterface,
-  StacModelInterface,
-} from './interfaces/IStacModel'
 
 export class StacModel implements StacModelInterface {
   public async httpService(url: string, body: StacHttpInterface) {
