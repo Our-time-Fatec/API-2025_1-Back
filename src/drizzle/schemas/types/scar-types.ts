@@ -1,11 +1,5 @@
 import { pgEnum } from 'drizzle-orm/pg-core'
-
-export const scarStatus = [
-  'pending',
-  'processing',
-  'completed',
-  'failed',
-] as const
+import { scarStatus } from '#/constants/scar-status'
 
 export type ScarStatus = (typeof scarStatus)[number]
 
