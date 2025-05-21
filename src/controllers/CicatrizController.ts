@@ -80,7 +80,7 @@ export class CicatrizController {
 
     if (processErr) {
       throw new CustomError(
-        `Erro ao iniciar o processo. Erro: ${processErr.message}`,
+        `Erro ao iniciar o processo. ${processErr.message}`,
         processErr.statusCode,
         processErr.code
       )
@@ -159,7 +159,7 @@ export class CicatrizController {
 
   async getAllCicatriz({
     offset,
-    limit,
+    limit = 10,
     endDate,
     startDate,
   }: GetAllCicatrizProps) {
@@ -189,13 +189,11 @@ export class CicatrizController {
     }
 
     if (startDate) {
-      const startDateObj = new Date(startDate)
-      conditions.push(gte(stacImages.createdAt, startDateObj))
+      conditions.push(gte(stacImages.createdAt, startDate))
     }
 
     if (endDate) {
-      const endDateObj = new Date(endDate)
-      conditions.push(gte(stacImages.createdAt, endDateObj))
+      conditions.push(gte(stacImages.createdAt, endDate))
     }
 
     if (conditions.length > 0) {
@@ -226,7 +224,8 @@ export class CicatrizController {
         status: scarImage.status,
         url: uploads.url,
         collection: stacImages.collection,
-        datetime: stacImages.datetime,
+        startDate: stacImages.startDate,
+        endDate: stacImages.endDate,
         bbox: stacImages.bbox,
         geometry: stacImages.geometry,
       })
@@ -277,7 +276,8 @@ export class CicatrizController {
         status: scarImage.status,
         url: uploads.url,
         collection: stacImages.collection,
-        datetime: stacImages.datetime,
+        startDate: stacImages.startDate,
+        endDate: stacImages.endDate,
         bbox: stacImages.bbox,
         geometry: stacImages.geometry,
       })
@@ -287,13 +287,11 @@ export class CicatrizController {
       .orderBy(desc(scarImage.createdAt))
 
     if (startDate) {
-      const startDateObj = new Date(startDate)
-      conditions.push(gte(stacImages.createdAt, startDateObj))
+      conditions.push(gte(stacImages.startDate, startDate))
     }
 
     if (endDate) {
-      const endDateObj = new Date(endDate)
-      conditions.push(gte(stacImages.createdAt, endDateObj))
+      conditions.push(gte(stacImages.endDate, endDate))
     }
 
     query.where(and(...conditions))
@@ -316,7 +314,7 @@ export class CicatrizController {
     }
 
     if (data.length === 0) {
-      throw new CustomError('Nenhum processo encontrado', 404, 'NOT_FOUND')
+      throw new CustomError('Nenhum processo encontrado', 204, 'NOT_FOUND')
     }
 
     return { data, count: data.length }

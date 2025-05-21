@@ -1,5 +1,6 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { uploadRoutes } from './aws'
+import { cicatrizRoutes } from './cicatriz'
 import { exampleRoutes } from './example'
 import { queimadaRoutes } from './queimada'
 import { burnRoutes } from './stac'
@@ -12,3 +13,4 @@ routes.push(uploadRoutes)
 routes.push(userRoutes)
 routes.push(queimadaRoutes)
 routes.push(burnRoutes)
+routes.push(cicatrizRoutes)

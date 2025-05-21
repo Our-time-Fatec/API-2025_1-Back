@@ -6,16 +6,16 @@ import { StatusCodes } from '#/enums/status-code'
 import { logger } from '#/settings/logger'
 import { catchError } from '#/utils/catchError'
 
-export const stacStatusRoute: FastifyPluginAsyncZod = async app => {
+export const statusCicatrizRoute: FastifyPluginAsyncZod = async app => {
   app.get(
     '/check/:jobId',
     {
       schema: {
-        summary: 'Pesquisar imagens STAC',
+        summary: 'Checa o status do processamento de uma cicatriz',
         params: z.object({
           jobId: z.string(),
         }),
-        tags: ['STAC'],
+        tags: ['Cicatriz'],
         operationId: 'scarCheck',
         response: {
           200: z.object({

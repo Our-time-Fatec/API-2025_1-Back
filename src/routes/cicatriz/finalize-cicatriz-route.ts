@@ -10,14 +10,14 @@ interface MultipartFileRequest {
   file: () => Promise<MultipartFile>
 }
 
-export const uploadV2Route: FastifyPluginAsyncZod = async app => {
+export const finalizeCicatrizRoute: FastifyPluginAsyncZod = async app => {
   app.post(
-    '/v2',
+    '/finalize',
     {
       schema: {
-        summary: 'Upload de arquivo para S3',
-        tags: ['Upload'],
-        operationId: 'uploadFileV2',
+        summary: 'Finaliza o processamento de uma cicatriz',
+        tags: ['Cicatriz'],
+        operationId: 'finalizeCicatriz',
         consumes: ['multipart/form-data'],
         querystring: z.object({
           jobId: z.string(),

@@ -16,8 +16,8 @@ export interface GetStatusCicatrizProps {
 export interface GetAllCicatrizProps {
   limit?: number
   offset?: number
-  startDate?: string
-  endDate?: string
+  startDate?: Date
+  endDate?: Date
 }
 
 export interface GetCicatrizByIdProps {
@@ -26,8 +26,8 @@ export interface GetCicatrizByIdProps {
 
 export interface GetCicatrizByBboxProps {
   bbox: number[]
-  startDate?: string
-  endDate?: string
+  startDate?: Date
+  endDate?: Date
   limit?: number
   offset?: number
 }

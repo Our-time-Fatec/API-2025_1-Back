@@ -15,7 +15,8 @@ type DBResponse = {
   createdAt: Date | null
   itemId: string
   collection: string
-  datetime: Date
+  startDate: Date
+  endDate: Date
   bbox: unknown
   geometry: unknown
   band_15: string

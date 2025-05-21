@@ -14,6 +14,13 @@ import { CustomError } from '#/errors/custom/CustomError'
 import { catchError } from '#/utils/catchError'
 
 export class StacModel implements StacModelInterface {
+  private separarData(caminho: string) {
+    const partes = caminho.split(/\\/, 2)
+    return {
+      startDate: partes[0] || '',
+      endDate: partes[1] || '',
+    }
+  }
   public async httpService(url: string, body: StacHttpInterface) {
     const { collections, bbox, datetime, limit } = body
 
@@ -112,13 +119,15 @@ export class StacModel implements StacModelInterface {
   }
 
   public async saveImage(item: Feature, band_15: string, band_16: string) {
+    const { startDate, endDate } = this.separarData(item.properties.datetime)
     const [dbError, dbData] = await catchError(
       db
         .insert(stacImages)
         .values({
           itemId: item.id,
           collection: item.collection,
-          datetime: new Date(item.properties.datetime),
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
           bbox: item.bbox,
           geometry: item.geometry,
           band_15,

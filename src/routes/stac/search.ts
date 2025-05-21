@@ -141,7 +141,7 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
         db.insert(stacImages).values({
           itemId: item.id,
           collection: item.collection,
-          datetime: new Date(item.properties.datetime),
+          startDate: new Date(item.properties.datetime),
           bbox: item.bbox,
           geometry: item.geometry,
           band_15: imageUrl,

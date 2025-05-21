@@ -2,7 +2,6 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { CicatrizController } from '#/controllers/CicatrizController'
 import { StatusCodes } from '#/enums/status-code'
-import { logger } from '#/settings/logger'
 import { catchError } from '#/utils/catchError'
 
 export const bodySchema = z.object({
@@ -12,14 +11,14 @@ export const bodySchema = z.object({
   limit: z.number().optional(),
 })
 
-export const stacSearchV2Route: FastifyPluginAsyncZod = async app => {
+export const createCicatrizRoute: FastifyPluginAsyncZod = async app => {
   app.post(
-    '/search/v2',
+    '/create',
     {
       schema: {
         body: bodySchema,
-        summary: 'Pesquisar imagens STAC',
-        tags: ['STAC'],
+        summary: 'Criar processamento de cicatriz',
+        tags: ['Cicatriz'],
         operationId: 'stacSearch',
         response: {
           200: z.object({
