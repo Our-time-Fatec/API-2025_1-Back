@@ -2,14 +2,18 @@ import type { IRoutes } from '#/@types/routes/IRoutes'
 import { registerPrefix } from '#/utils/registerPrefix'
 import { createCicatrizRoute } from './create-cicatriz-route'
 import { finalizeCicatrizRoute } from './finalize-cicatriz-route'
-import { searchQueimadaBboxRoute } from './search-bbox-route'
+import { searchAllCicatrizRoute } from './search-all-cicatriz'
+import { searchCicatrizByBboxRoute } from './search-bbox-route'
+import { searchCicatrizByIdRoute } from './search-id-route'
 import { statusCicatrizRoute } from './status-route'
 
 const routes: IRoutes = [
-  { route: searchQueimadaBboxRoute, private: true },
+  { route: searchCicatrizByBboxRoute, private: true },
   { route: statusCicatrizRoute, private: true },
   { route: createCicatrizRoute, private: true },
   { route: finalizeCicatrizRoute, private: true },
+  { route: searchAllCicatrizRoute, private: true },
+  { route: searchCicatrizByIdRoute, private: true },
 ]
 
 const cicatrizRoute = '/cicatriz'

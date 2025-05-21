@@ -4,27 +4,23 @@ import { CicatrizController } from '#/controllers/CicatrizController'
 import { StatusCodes } from '#/enums/status-code'
 import { logger } from '#/settings/logger'
 import { catchError } from '#/utils/catchError'
-import { cicatrizBboxResponseSchema } from './schema/schemas'
+import { cicatrizBboxResponseSchema, cicatrizSchema } from './schema/schemas'
 
-const querySchema = z.object({
-  bbox: z.array(z.coerce.number()).length(4),
-  startDate: z.coerce.date().optional(),
-  endDate: z.coerce.date().optional(),
-  limit: z.coerce.number().optional(),
-  offset: z.coerce.number().optional(),
+const paramsSchema = z.object({
+  id: z.string(),
 })
 
-export const searchCicatrizByBboxRoute: FastifyPluginAsyncZod = async app => {
+export const searchCicatrizByIdRoute: FastifyPluginAsyncZod = async app => {
   app.get(
-    '/bbox',
+    '/:id',
     {
       schema: {
-        querystring: querySchema,
-        summary: 'Pesquisar imagens de queimada por bbox',
+        params: paramsSchema,
+        summary: 'Pesquisar imagens de queimada por id',
         tags: ['Cicatriz'],
-        operationId: 'bboxCicatriz',
+        operationId: 'searchCicatrizById',
         response: {
-          201: cicatrizBboxResponseSchema,
+          201: cicatrizSchema,
           400: z.object({
             message: z.string(),
           }),
@@ -32,17 +28,13 @@ export const searchCicatrizByBboxRoute: FastifyPluginAsyncZod = async app => {
       },
     },
     async (request, reply) => {
-      const { bbox, startDate, endDate, limit, offset } = request.query
+      const { id } = request.params
 
       const cicatrizController = new CicatrizController()
 
       const [error, data] = await catchError(
-        cicatrizController.getCicatrizByBbox({
-          bbox,
-          startDate,
-          endDate,
-          limit,
-          offset,
+        cicatrizController.getCicatrizById({
+          id,
         })
       )
 

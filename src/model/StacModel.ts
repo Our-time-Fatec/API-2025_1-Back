@@ -137,10 +137,10 @@ export class StacModel implements StacModelInterface {
     )
 
     if (dbError) {
-      const { statusCode, message } = dbError
+      const { message } = dbError
       throw new CustomError(
         `Erro ao salvar a imagem no banco de dados. Erro: ${message}`,
-        statusCode,
+        503,
         'ERROR_SAVING_IMAGE'
       )
     }

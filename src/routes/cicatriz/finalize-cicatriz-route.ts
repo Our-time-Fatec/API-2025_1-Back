@@ -36,6 +36,7 @@ export const finalizeCicatrizRoute: FastifyPluginAsyncZod = async app => {
     async (request, reply) => {
       const req = request as typeof request & MultipartFileRequest
       const { jobId, status } = request.query
+
       const data = await req.file()
 
       const cicatrizController = new CicatrizController()
