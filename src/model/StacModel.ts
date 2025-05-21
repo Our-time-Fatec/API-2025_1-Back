@@ -11,16 +11,10 @@ import { http } from '#/client/http'
 import { db } from '#/drizzle/client'
 import { stacImages } from '#/drizzle/schemas/metadata'
 import { CustomError } from '#/errors/custom/CustomError'
+import { UtilClass } from '#/utils/UtilClass'
 import { catchError } from '#/utils/catchError'
 
-export class StacModel implements StacModelInterface {
-  private separarData(caminho: string) {
-    const partes = caminho.split(/\\/, 2)
-    return {
-      startDate: partes[0] || '',
-      endDate: partes[1] || '',
-    }
-  }
+export class StacModel extends UtilClass implements StacModelInterface {
   public async httpService(url: string, body: StacHttpInterface) {
     const { collections, bbox, datetime, limit } = body
 

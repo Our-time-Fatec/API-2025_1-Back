@@ -15,18 +15,40 @@ import { uploads } from '#/drizzle/schemas/uploads'
 import { CustomError } from '#/errors/custom/CustomError'
 import { iaModel } from '#/model/IAModel'
 import { stacModel } from '#/model/StacModel'
+import { UtilClass } from '#/utils/UtilClass'
 import { catchError } from '#/utils/catchError'
 import { retryWithCatch } from '#/utils/retry'
 import { uploadController } from './UploadController'
 
-export class CicatrizController {
+export class CicatrizController extends UtilClass {
   async createCicatriz({
     bbox,
     collections,
     datetime,
     limit,
+    ignore_existing,
     JWT,
   }: CreateCicatrizProps) {
+    const { endDate, startDate } = this.separarData(datetime)
+
+    const [, found] = await catchError(
+      this.getCicatrizByBbox({
+        bbox,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+      })
+    )
+
+    if (found) {
+      if (found.count > 0 && !ignore_existing) {
+        throw new CustomError(
+          'Já existe um processo cicatriz para essa área. Verifique essas propriedades na tela de cadastrados',
+          409,
+          'PROCESS_ALREADY_EXISTS'
+        )
+      }
+    }
+
     const [error, data] = await retryWithCatch(() =>
       stacModel.httpService(STAC_URL, {
         collections,

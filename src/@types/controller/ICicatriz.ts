@@ -1,7 +1,10 @@
 import type { MultipartFile } from '@fastify/multipart'
 import type { StacHttpInterface } from '../models/IStacModel'
 
-export type CreateCicatrizProps = StacHttpInterface & { JWT: string }
+export type CreateCicatrizProps = StacHttpInterface & {
+  JWT: string
+  ignore_existing?: boolean
+}
 
 export interface FinalizeCicatrizProps {
   data: MultipartFile | undefined

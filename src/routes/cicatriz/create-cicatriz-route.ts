@@ -9,6 +9,7 @@ export const bodySchema = z.object({
   bbox: z.array(z.number()).length(4),
   datetime: z.string(),
   limit: z.number().optional(),
+  ignore_existing: z.boolean().optional(),
 })
 
 export const createCicatrizRoute: FastifyPluginAsyncZod = async app => {
@@ -38,6 +39,7 @@ export const createCicatrizRoute: FastifyPluginAsyncZod = async app => {
         bbox,
         datetime,
         limit,
+        ignore_existing,
         token: JWT,
       } = request.body as {
         token: string
@@ -58,6 +60,7 @@ export const createCicatrizRoute: FastifyPluginAsyncZod = async app => {
           datetime,
           limit,
           JWT,
+          ignore_existing,
         })
       )
 
