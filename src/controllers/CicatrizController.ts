@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, or, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, lte, or, sql } from 'drizzle-orm'
 import type {
   CreateCicatrizProps,
   FinalizeCicatrizProps,
@@ -189,11 +189,11 @@ export class CicatrizController {
     }
 
     if (startDate) {
-      conditions.push(gte(stacImages.createdAt, startDate))
+      conditions.push(gte(stacImages.startDate, startDate))
     }
 
     if (endDate) {
-      conditions.push(gte(stacImages.createdAt, endDate))
+      conditions.push(lte(stacImages.endDate, endDate))
     }
 
     if (conditions.length > 0) {
@@ -291,7 +291,7 @@ export class CicatrizController {
     }
 
     if (endDate) {
-      conditions.push(gte(stacImages.endDate, endDate))
+      conditions.push(lte(stacImages.endDate, endDate))
     }
 
     query.where(and(...conditions))
