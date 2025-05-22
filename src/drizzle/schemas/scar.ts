@@ -1,5 +1,5 @@
 import { integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
-import { stacImages } from './metadata'
+import { stacImages } from './stac'
 import { scarStatusEnum } from './types/scar-types'
 import { uploads } from './uploads'
 

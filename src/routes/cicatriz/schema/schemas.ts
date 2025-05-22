@@ -1,7 +1,7 @@
 import z from 'zod'
 import { scarStatus } from '#/constants/scar-status'
 
-const geometrySchema = z.object({
+export const geometrySchema = z.object({
   type: z.string(),
   coordinates: z.array(z.array(z.tuple([z.number(), z.number()]))),
 })
@@ -55,4 +55,17 @@ export const allCicatrizSchema = z.object({
 export const cicatrizBboxResponseSchema = z.object({
   data: cicatrizesSchema,
   count: z.number(),
+})
+
+const summary = z.object({
+  type: z.enum(['Polygon', 'MultiPolygon']),
+  ringCount: z.number(),
+  vertexCount: z.number(),
+})
+
+export const analyticsCicatrizSchema = cicatrizSchema.extend({
+  area: z.string(),
+  perimeter: z.string(),
+  centroid: z.tuple([z.number(), z.number()]),
+  geometry: summary,
 })

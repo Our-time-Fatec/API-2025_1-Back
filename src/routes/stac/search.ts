@@ -11,7 +11,7 @@ import { logger } from '#/settings/logger'
 import { catchError } from '#/utils/catchError'
 import { getDirname } from '#/utils/path'
 import { db } from '../../drizzle/client'
-import { stacImages } from '../../drizzle/schemas/metadata'
+import { stacImages } from '../../drizzle/schemas/stac'
 
 export const bodySchema = z.object({
   collections: z.array(z.string()),
@@ -77,6 +77,8 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
       }
 
       const item = features[0]
+
+      logger.info('Item encontrado:', item)
       const assets = item.assets
       const availableAssets = Object.keys(assets)
       logger.success('Assets disponíveis:', availableAssets)
@@ -137,24 +139,24 @@ export const stacSearchRoute: FastifyPluginAsyncZod = async app => {
         })
       }
 
-      const [dbError] = await catchError(
-        db.insert(stacImages).values({
-          itemId: item.id,
-          collection: item.collection,
-          startDate: new Date(item.properties.datetime),
-          bbox: item.bbox,
-          geometry: item.geometry,
-          band_15: imageUrl,
-          band_16: localPath,
-        })
-      )
+      // const [dbError] = await catchError(
+      //   db.insert(stacImages).values({
+      //     itemId: item.id,
+      //     collection: item.collection,
+      //     startDate: new Date(item.properties.datetime),
+      //     bbox: item.bbox,
+      //     geometry: item.geometry,
+      //     band_15: imageUrl,
+      //     band_16: localPath,
+      //   })
+      // )
 
-      if (dbError) {
-        const { statusCode, message } = dbError
-        return reply.code(statusCode).send({
-          message: `Erro ao salvar a imagem no banco de dados. Erro: ${message}`,
-        })
-      }
+      // if (dbError) {
+      //   const { statusCode, message } = dbError
+      //   return reply.code(statusCode).send({
+      //     message: `Erro ao salvar a imagem no banco de dados. Erro: ${message}`,
+      //   })
+      // }
 
       return reply.send({
         message: 'Imagem baixada e salva com sucesso.',

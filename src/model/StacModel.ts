@@ -9,7 +9,7 @@ import type {
 import type { Feature, Stac } from '#/@types/stac/IResponse'
 import { http } from '#/client/http'
 import { db } from '#/drizzle/client'
-import { stacImages } from '#/drizzle/schemas/metadata'
+import { stacImages } from '#/drizzle/schemas/stac'
 import { CustomError } from '#/errors/custom/CustomError'
 import { UtilClass } from '#/utils/UtilClass'
 import { catchError } from '#/utils/catchError'
@@ -112,8 +112,13 @@ export class StacModel extends UtilClass implements StacModelInterface {
     return localPath
   }
 
-  public async saveImage(item: Feature, band_15: string, band_16: string) {
-    const { startDate, endDate } = this.separarData(item.properties.datetime)
+  public async saveImage(
+    item: Feature,
+    band_15: string,
+    band_16: string,
+    datetime: string
+  ) {
+    const { startDate, endDate } = this.separarData(datetime)
     const [dbError, dbData] = await catchError(
       db
         .insert(stacImages)

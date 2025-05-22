@@ -32,6 +32,7 @@ export interface StacModelInterface {
   saveImage: (
     item: Feature,
     band_15: string,
-    band_16: string
+    band_16: string,
+    datetime: string
   ) => Promise<DBResponse>
 }

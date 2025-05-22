@@ -1,5 +1,6 @@
 import type { IRoutes } from '#/@types/routes/IRoutes'
 import { registerPrefix } from '#/utils/registerPrefix'
+import { analyticsCicatrizRoute } from './analytics-cicatriz-route'
 import { createCicatrizRoute } from './create-cicatriz-route'
 import { finalizeCicatrizRoute } from './finalize-cicatriz-route'
 import { searchAllCicatrizRoute } from './search-all-cicatriz'
@@ -14,6 +15,7 @@ const routes: IRoutes = [
   { route: finalizeCicatrizRoute, private: true },
   { route: searchAllCicatrizRoute, private: true },
   { route: searchCicatrizByIdRoute, private: true },
+  { route: analyticsCicatrizRoute, private: true },
 ]
 
 const cicatrizRoute = '/cicatriz'

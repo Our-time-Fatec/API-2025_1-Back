@@ -9,12 +9,13 @@ import type {
 } from '#/@types/controller/ICicatriz'
 import { STAC_URL } from '#/constants/STAC_URL'
 import { db } from '#/drizzle/client'
-import { stacImages } from '#/drizzle/schemas/metadata'
 import { scarImage } from '#/drizzle/schemas/scar'
+import { stacImages } from '#/drizzle/schemas/stac'
 import { uploads } from '#/drizzle/schemas/uploads'
 import { CustomError } from '#/errors/custom/CustomError'
 import { iaModel } from '#/model/IAModel'
 import { stacModel } from '#/model/StacModel'
+import { logger } from '#/settings/logger'
 import { UtilClass } from '#/utils/UtilClass'
 import { catchError } from '#/utils/catchError'
 import { retryWithCatch } from '#/utils/retry'
@@ -66,7 +67,7 @@ export class CicatrizController extends UtilClass {
       )
     }
 
-    const [iaError, _] = await catchError(iaModel.checkAIStatus())
+    const [iaError] = await catchError(iaModel.checkAIStatus())
 
     if (iaError) {
       throw new CustomError(iaError.message, iaError.statusCode, iaError.code)
@@ -77,7 +78,7 @@ export class CicatrizController extends UtilClass {
     const { BAND_15, BAND_16 } = stacModel.getBands(feature)
 
     const [dbErr, dbData] = await catchError(
-      stacModel.saveImage(feature, BAND_15, BAND_16)
+      stacModel.saveImage(feature, BAND_15, BAND_16, datetime)
     )
 
     if (dbErr) {
@@ -267,6 +268,65 @@ export class CicatrizController extends UtilClass {
     }
 
     return data[0]
+  }
+
+  async getCicatrizDetails({ id }: GetCicatrizByIdProps) {
+    const query = db
+      .select({
+        id: scarImage.id,
+        jobId: scarImage.jobId,
+        stacId: stacImages.id,
+        uploadId: uploads.id,
+        createdAt: scarImage.createdAt,
+        status: scarImage.status,
+        url: uploads.url,
+        collection: stacImages.collection,
+        startDate: stacImages.startDate,
+        endDate: stacImages.endDate,
+        bbox: stacImages.bbox,
+        geometry: stacImages.geometry,
+      })
+      .from(scarImage)
+      .where(and(eq(scarImage.id, id), eq(scarImage.status, 'completed')))
+      .leftJoin(stacImages, eq(scarImage.stacId, stacImages.id))
+      .leftJoin(uploads, eq(scarImage.uploadId, uploads.id))
+
+    const [error, data] = await catchError(query)
+
+    if (error) {
+      throw new CustomError(
+        `Erro ao buscar o processo. Erro: ${error.message}`,
+        503,
+        'PROCESS_FETCH_ERROR'
+      )
+    }
+
+    if (data.length === 0) {
+      throw new CustomError('Processo não encontrado', 404, 'PROCESS_NOT_FOUND')
+    }
+
+    const cicatriz = data[0]
+
+    const { geometry, bbox: _, ...rest } = cicatriz
+
+    const polygon = this.generatePolygon(geometry)
+
+    const { areaKm2, bbox, centroid, perimeterKm } = this.analyzePolygon(
+      polygon.geometry.coordinates
+    )
+
+    const { bbox: __, ...res } = this.getGeoJsonBoundsSummary(polygon)
+
+    const analytics = {
+      ...rest,
+      area: `${areaKm2}km²`,
+      bbox,
+      perimeter: `${perimeterKm}km`,
+      centroid,
+      geometry: res,
+    }
+
+    return analytics
   }
 
   async getCicatrizByBbox({

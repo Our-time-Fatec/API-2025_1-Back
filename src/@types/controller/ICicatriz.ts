@@ -1,7 +1,8 @@
 import type { MultipartFile } from '@fastify/multipart'
 import type { StacHttpInterface } from '../models/IStacModel'
+import type { PaginationSchema } from '../utils'
 
-export type CreateCicatrizProps = StacHttpInterface & {
+export interface CreateCicatrizProps extends StacHttpInterface {
   JWT: string
   ignore_existing?: boolean
 }
@@ -16,9 +17,7 @@ export interface GetStatusCicatrizProps {
   jobId: string
 }
 
-export interface GetAllCicatrizProps {
-  limit?: number
-  offset?: number
+export interface GetAllCicatrizProps extends PaginationSchema {
   startDate?: Date
   endDate?: Date
 }
@@ -27,10 +26,8 @@ export interface GetCicatrizByIdProps {
   id: string
 }
 
-export interface GetCicatrizByBboxProps {
+export interface GetCicatrizByBboxProps extends PaginationSchema {
   bbox: number[]
   startDate?: Date
   endDate?: Date
-  limit?: number
-  offset?: number
 }
