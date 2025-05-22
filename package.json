@@ -29,6 +29,7 @@
     "@fastify/multipart": "^9.0.3",
     "@fastify/swagger": "^9.4.2",
     "@fastify/swagger-ui": "^5.2.2",
+    "@turf/turf": "^7.2.0",
     "axios": "^1.8.4",
     "bcryptjs": "^3.0.2",
     "drizzle-orm": "^0.40.1",
