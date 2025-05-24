@@ -20,7 +20,7 @@ export function registerPlugins(app: FastifyInstance) {
   app.register(fastifySwagger, {
     openapi: {
       info: {
-        title: 'ProcessBurn API',
+        title: 'Scar API',
         version: version,
       },
       components: {
