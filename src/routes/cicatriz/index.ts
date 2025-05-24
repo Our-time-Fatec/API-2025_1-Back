@@ -7,6 +7,7 @@ import { searchAllCicatrizRoute } from './search-all-cicatriz'
 import { searchCicatrizByBboxRoute } from './search-bbox-route'
 import { searchCicatrizByIdRoute } from './search-id-route'
 import { statusCicatrizRoute } from './status-route'
+import { testRoute } from './test-route'
 
 const routes: IRoutes = [
   { route: searchCicatrizByBboxRoute, private: true },
@@ -16,6 +17,7 @@ const routes: IRoutes = [
   { route: searchAllCicatrizRoute, private: true },
   { route: searchCicatrizByIdRoute, private: true },
   { route: analyticsCicatrizRoute, private: true },
+  { route: testRoute, private: false },
 ]
 
 const cicatrizRoute = '/cicatriz'
