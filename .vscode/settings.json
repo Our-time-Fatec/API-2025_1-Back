@@ -6,5 +6,5 @@
   "editor.codeActionsOnSave": {
     "source.organizeImports.biome": "explicit"
   },
-  "cSpell.words": ["bbox", "stac"]
+  "cSpell.words": ["bbox", "ndvi", "nvdi", "Nvdi", "stac"]
 }
