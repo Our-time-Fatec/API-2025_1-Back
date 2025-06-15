@@ -1,7 +1,10 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { CicatrizController } from '#/controllers/CicatrizController'
+import { UploadController } from '#/controllers/UploadController'
 import { StatusCodes } from '#/enums/status-code'
+import { IAModel } from '#/model/IAModel'
+import { StacModel } from '#/model/StacModel'
 import { logger } from '#/settings/logger'
 import { catchError } from '#/utils/catchError'
 import { allCicatrizSchema } from './schema/schemas'
@@ -33,7 +36,16 @@ export const searchAllCicatrizRoute: FastifyPluginAsyncZod = async app => {
     async (request, reply) => {
       const { startDate, endDate, limit, offset } = request.query
 
-      const cicatrizController = new CicatrizController()
+      const iaModel = new IAModel(app.db)
+      const stacModel = new StacModel(app.db)
+      const uploadController = new UploadController(app.db)
+
+      const cicatrizController = new CicatrizController({
+        iaModel,
+        uploadController,
+        stacModel,
+        db: app.db,
+      })
 
       const [error, data] = await catchError(
         cicatrizController.getAllCicatriz({
