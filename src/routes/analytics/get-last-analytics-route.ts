@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { AnalyticsController } from '#/controllers/AnalyticsController'
 import { StatusCodes } from '#/enums/status-code'
 import { catchError } from '#/utils/catchError'
-import { AllDataAnalyticsSchemaResponse } from './schemas'
+import { LastAnalyticsSchemaResponse } from './schemas'
 
 export const getLastAnalyticsRoute: FastifyPluginAsyncZod = async app => {
   app.get(
@@ -12,9 +12,9 @@ export const getLastAnalyticsRoute: FastifyPluginAsyncZod = async app => {
       schema: {
         summary: 'Busca os dados das últimas 5 analytics',
         tags: ['Analytics'],
-        operationId: 'getAllDataAnalytics',
+        operationId: 'getLastAnalytics',
         response: {
-          200: z.array(AllDataAnalyticsSchemaResponse),
+          200: z.array(LastAnalyticsSchemaResponse),
           400: z.object({
             message: z.string(),
           }),

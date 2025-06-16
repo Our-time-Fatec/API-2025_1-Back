@@ -42,6 +42,7 @@ export const AllDataAnalyticsSchemaResponse = z.object({
   analyticsId: z.number(),
   stacId: z.string(),
   uploadId: z.number().nullable(),
+  url: z.string(),
   areaStats: z.object({
     id: z.number(),
     analyticsId: z.number(),
@@ -66,6 +67,10 @@ export const AllDataAnalyticsSchemaResponse = z.object({
     burned_area_km2: z.number(),
     burned_percent: z.number(),
   }),
+})
+
+export const LastAnalyticsSchemaResponse = AllDataAnalyticsSchemaResponse.omit({
+  url: true,
 })
 
 export const GeometryResponseSchema = z.object({
@@ -93,13 +98,18 @@ export const LatLngSchema = z.object({
   created_at: z.date().nullable(),
 })
 
+const RangeSchema = z.object({
+  from: z.number(),
+  to: z.number(),
+})
+
+const AverageItemSchema = z.object({
+  range: z.array(z.number()),
+  averageCount: z.number(),
+})
+
 export const AverageSchema = z.object({
-  averages: z.array(
-    z.object({
-      range: z.tuple([z.number(), z.number()]),
-      averageCount: z.number(),
-    })
-  ),
+  averages: z.array(AverageItemSchema),
 })
 
 export const OverviewSchema = z.object({
